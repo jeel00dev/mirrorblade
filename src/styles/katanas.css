@@ -9,10 +9,10 @@
 .katana-stage-label b { color: var(--text-secondary); font-size: 18px; font-variant-numeric: tabular-nums; }
 .katana-stage-label small { font-size: var(--fs-caption); color: var(--text-muted); font-weight: 500; }
 .katana-tools { position: absolute !important; inset: auto var(--s-3) var(--s-3); display: flex; justify-content: space-between; gap: var(--s-2); z-index: 4 !important; }
-.katana-tools button, .hero-motion { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); min-height: 44px; padding: var(--s-2) var(--s-3); border-radius: var(--r-s); background: var(--control-face); box-shadow: var(--shadow-rest), var(--inner-highlight), var(--inner-edge); color: var(--text-secondary); font-size: var(--fs-caption); font-weight: 600; }
-.katana-tools .icon, .hero-motion .icon { width: 18px; height: 18px; }
-.katana-tools button:hover, .hero-motion:hover { background: var(--control-face-hover); color: var(--text-primary); }
-.katana-tools button:active, .hero-motion:active { box-shadow: var(--shadow-pressed); }
+.katana-tools button { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); min-height: 44px; padding: var(--s-2) var(--s-3); border-radius: var(--r-s); background: var(--control-face); box-shadow: var(--shadow-rest), var(--inner-highlight), var(--inner-edge); color: var(--text-secondary); font-size: var(--fs-caption); font-weight: 600; }
+.katana-tools .icon { width: 18px; height: 18px; }
+.katana-tools button:hover { background: var(--control-face-hover); color: var(--text-primary); }
+.katana-tools button:active { box-shadow: var(--shadow-pressed); }
 .katana-catalog .preview-info { padding: var(--s-1) var(--s-1) var(--s-1) 0; gap: var(--s-1); }
 .katana-viewport { position: absolute !important; inset: var(--s-6) 0 64px; z-index: 2 !important; }
 .katana-catalog .preview-info h2 { font-size: var(--fs-title); letter-spacing: -.02em; line-height: 1.1; }
@@ -27,7 +27,7 @@
 .katana-replay > span { display: grid; gap: 2px; font-weight: 600; font-size: var(--fs-caption); }
 .katana-replay small { font-size: var(--fs-caption); color: var(--text-muted); font-weight: 400; }
 .katana-replay:hover > span { color: var(--c4); }
-.katana-replay:disabled, .katana-tools button:disabled, .hero-motion:disabled { opacity: .45; cursor: default; }
+.katana-replay:disabled, .katana-tools button:disabled { opacity: .45; cursor: default; }
 .katana-catalog .preview-actions { margin-top: var(--s-2); }
 .katana-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-3); overflow: visible; }
 .katana-item { grid-template-rows: auto 80px auto auto; gap: var(--s-1); padding: var(--s-3); }
@@ -41,7 +41,6 @@
 .katana-item .item-state { top: var(--s-2); right: var(--s-2); width: 18px; height: 18px; }
 .katana-item[aria-selected="true"] .katana-tier b { color: var(--accent); }
 .home-hero { grid-template-rows: minmax(0, 1fr) auto auto; }
-.hero-motion { position: absolute; right: var(--s-3); bottom: var(--s-3); width: 44px; padding: var(--s-2); z-index: 4; }
 .hero-blade-caption { display: grid; justify-items: center; gap: var(--s-1); padding: var(--s-2) 0; }
 .hero-blade-caption > span { color: var(--text-muted); font-size: var(--fs-caption); }
 .hero-blade-caption b { display: flex; align-items: baseline; gap: var(--s-2); color: var(--text-primary); font-size: var(--fs-section); font-weight: 700; }
@@ -64,6 +63,5 @@
   .hero-blade-caption > span { display: none; }
   .hero-blade-caption b { font-size: var(--fs-body); }
   .hero-stage { min-height: 72px; }
-  .hero-motion { right: 0; bottom: 0; }
   .katana-catalog .preview-stage { height: 320px; }
 }

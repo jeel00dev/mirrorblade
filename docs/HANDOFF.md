@@ -2,6 +2,16 @@
 
 Newest entry first. Each session appends: who, when, what was done, what to pick up next.
 
+## 2026-09-12 — Codex: responsive dynamic tray on `fix/responsive-dynamic-tray`
+
+Researched and reproduced the owner-supplied overflow cases before implementation; see `research-2026-09-12-responsive-dynamic-tray.md` and `responsive-layout-audit.md`. Root causes were the three-piece layout budget, visible implicit rows, a global width-oriented preview scale and a non-scrollable touch path. Fragment normalization was already correct and now has explicit coverage; the katana canvas projection was not the collision source.
+
+Implemented a count- and container-driven layout, bounded scrollable tray, one normalized per-card preview-fit utility, reserved blade track, resize observation, reflow/fragment reveal, scroll-versus-held-drag touch intent, live return bounds after resize and a development geometry overlay. Removed the Home blade animation Play/Pause button while retaining the primary Play action and catalog showcase controls. The OBSIDIAN MIRROR materials and procedural asset set are unchanged.
+
+Validation: 111 unit tests, 42 Playwright tests, production build, 22 requested viewports × counts 1–8 plus 12 pieces, mouse and real-touch scrolled cut paths, resize state preservation, and the full 126-image seven-viewport capture pass with no console errors. Dedicated reviewed captures are in `qa/responsive-tray/`. Physical-device touch feel and real-GPU performance remain normal release checks.
+
+---
+
 ## 2026-09-12 — Codex: five katana collection on `ui/shop`
 
 Started with docs, contribution rules and the single available import commit (`33155d1`). New museum/game-development research is in `research-2026-09-12-katana-collection.md`. Standing owner preferences are in root `AGENTS.md`.

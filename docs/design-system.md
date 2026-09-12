@@ -25,7 +25,7 @@ Depth 0: dark page, a single broad studio light. Depth 1: board frame and recess
 
 Typography: local system sans-serif, no remote font. Display 48–76/1.0, Score 44–64/1.0 tabular bold, Title 28–40/1.15, Section 18–22/1.3, Button 15–17/1.1 semibold, Body 14–16/1.5, Caption 12–13/1.4. Micro 11 only for nonessential metadata. Uppercase limited to wordmark and short celebration; normal text is sentence case. Score is larger than every gameplay label.
 
-Desktop: a cohesive centered instrument, large board left (~available height), compact right interaction rail containing score, tray, blade/energy. Width cap grows to use large displays; no orphaned header controls spread across screen. Portrait: header, square board, tray, blade; tight vertical grouping without huge holes. Short landscape: board and rail side-by-side, two-column tray if needed. Layout computed from available width AND height; safe-area insets always applied. Menus may scroll vertically; gameplay does not.
+Desktop: a cohesive centered instrument, large board left (~available height), compact right interaction rail containing score, tray, blade/energy. Width cap grows to use large displays; no orphaned header controls spread across screen. Portrait: header, square board, tray, blade; tight vertical grouping without huge holes. Short landscape: board and rail side-by-side, two-column tray if needed. Layout is computed from the gameplay container's available width and height; safe-area insets always apply. Menus may scroll vertically; the gameplay page remains fixed while only an overflowing piece tray scrolls.
 
 ## Screen family
 
@@ -59,7 +59,7 @@ The system above was written before implementation. This is what shipped, so bot
 
 **Blade**: the one Three.js object (`render/BladeScene.ts`). Rhombic-section double-pointed geometry, flat facets, metalness 1 / roughness 0.2 / clearcoat 0.5, PMREM RoomEnvironment, hairline spine. Speed follows state (0.9 idle, 4.2 hover, 1.8 Overdrive, stalls near 0 with no charges), forge burst spins up and flashes the edge. Hero and preview mounts add a soft canvas-texture floor shadow.
 
-**Layout** (`render/Layout.ts`) publishes `--cell`, `--tray-cell`, `--board-w`, `--rail-w`, `--row-gap`, `data-layout` and `data-tray`. Landscape: board sized by height, rail takes the remaining width (268–460 px), tray stacks in a column when the rail budget allows ≥30 px tray cells, otherwise a row. Portrait: header, board, tray, blade with leftover height spread into the gaps.
+**Layout** (`render/Layout.ts`) receives the actual gameplay content box and live piece count, then publishes `--cell`, `--tray-cell`, `--board-w`, `--rail-w`, gaps, tray columns/row height/region height, blade size and `data-layout`. Landscape keeps the board beside a compact rail; portrait stacks header, board, bounded tray and blade. The tray owns an inner dynamic grid and becomes the only gameplay scrollport when rows exceed capacity. `PiecePreviewLayout.ts` normalizes each shape and fits its rendered bounds to its actual card. `ResizeObserver` updates layout for window, orientation, fullscreen, iframe and other container changes without touching game state.
 
 **Type**: system rounded sans stack. Score `clamp(30, 4.6vw, 48)` 800; display/wordmark `clamp(20, 5.4vw, 52)` 800 tracked 0.14em; title 26–36; section 18; button 16–18; body 15; caption 13; micro 11. Uppercase only on the wordmark, callouts, section labels and metric labels.
 

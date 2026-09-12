@@ -168,3 +168,28 @@ Brief: replace the static game-over crack with a katana strike that ends the run
 - [x] Captures: `qa/v3/gameover-cinematic-slash-*.png`, `qa/v3/gameover-cinematic-fall-*.png`, `qa/v3/gameover-*.png` at 7 viewports
 
 Definition of done, checked: run lock ✓ · katana enters/exits ✓ · slash reads ✓ · cut line ✓ · hit-stop ✓ · board recoil ✓ · pop + fall with rotation/cohesion ✓ · axis dies ✓ · audio layers ✓ · HUD fade with score kept ✓ · staged results ✓ · new-best and fracture variants ✓ · responsive ✓ · performance and cleanup ✓ · skip ✓ · reduced motion ✓ · docs and tests ✓. Not verifiable here: real-GPU frame time on a mid phone and a listening pass on the new sounds.
+
+---
+
+# RESPONSIVE TRAY BUG FIX — 2026-09-12
+
+- [x] Repository inspected
+- [x] Screenshot issues reproduced
+- [x] Piece bounds bug identified
+- [T] Piece bounds fixed
+- [T] Fragment normalization verified
+- [T] Dynamic tray implemented
+- [T] Katana region separated
+- [T] Tablet layout fixed
+- [T] Phone portrait fixed
+- [T] Phone landscape fixed
+- [T] Desktop fixed
+- [T] Internal scrolling implemented
+- [T] New fragments auto-revealed
+- [T] Drag + scroll interaction tested
+- [T] Katana drag target tested
+- [T] Resize tested without game-state reset
+- [T] Automated responsive tests added
+- [T] Visual QA complete in headless Chromium captures
+
+Research: `research-2026-09-12-responsive-dynamic-tray.md`. Audit and measured root causes: `responsive-layout-audit.md`. Final coverage: 111 unit tests; 42 Playwright tests; counts 1–8 across 22 target viewports plus 12-piece degradation; touch scroll/drag/cut; full seven-viewport screen captures and dedicated dynamic-tray captures with no console errors. Physical-device GPU/touch feel remains a release check, not an implementation blocker.

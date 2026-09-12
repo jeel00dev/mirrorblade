@@ -69,6 +69,12 @@
   --r-l: 20px;
   --r-xl: 28px;
 
+  /* Dynamic gameplay tray */
+  --tray-card-padding: 8px;
+  --tray-card-gap: 8px;
+  --tray-card-min-size: 64px;
+  --tray-card-radius: 12px;
+
   /* Depth (panels) */
   --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.32);
   --shadow-2: 0 8px 20px rgba(0, 0, 0, 0.38);

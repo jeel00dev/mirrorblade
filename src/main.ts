@@ -42,6 +42,7 @@ async function boot(): Promise<void> {
       skipCinematic: () => game.debugSkipCinematic(),
       forceOverdrive: () => game.debugForceOverdrive(),
       forceFracture: () => game.debugForceFracture(),
+      toggleLayoutDebug: (enabled) => game.debugLayout(enabled),
     };
   }
 }

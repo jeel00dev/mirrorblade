@@ -1,5 +1,29 @@
 # MIRRORBLADE V2 bug tracker
 
+## BUG-RESP-001 — Piece preview escapes tray card
+
+Severity: critical gameplay/presentation. Status: FIXED 2026-09-12. Reproduction: rotate `line5` vertical at 768×1024, 1366×768 or 320×568. Root cause: preview scale was global and width-oriented while card height was fixed. Fix: `PiecePreviewLayout.ts` normalizes every shape and fits it to the actual card width/height, padding and allowance; `TrayView` reapplies the fit after render, rotation and card resize. Regression: unit coverage for 1×1 through 1×5, rotations and offset irregular fragments plus DOM containment across the full viewport/count matrix.
+
+## BUG-RESP-002 — Katana overlaps dynamic piece slots
+
+Severity: critical gameplay. Status: FIXED 2026-09-12. Reproduction: force 6–8 pieces at phone, tablet or short-landscape sizes. Root cause: the parent layout budgeted one three-piece tray band while crowded CSS created extra visible-overflow rows. Fix: tray and blade now occupy separate grid tracks; the tray is bounded by its allocated track and its inner grid scrolls. The canvas/ring remain pointer-transparent and the cut hit target remains inside the blade region. Regression: clipped card-versus-blade and tray-versus-blade rectangle assertions for counts 1–8 and defensive 12 across 22 viewports.
+
+## BUG-RESP-003 — Cut fragments become inaccessible on mobile/tablet
+
+Severity: critical gameplay. Status: FIXED 2026-09-12. Reproduction: repeatedly cut until 6–8 tray pieces exist at 390×844, 768×1024 or 844×390. Root cause: dynamic rows were not included in the tray allocation and there was no fragment reveal. Fix: cut replacement reflows the grid, highlights both fragments, then scrolls the minimum distance needed to reveal them. Regression: cut the last item in a scrolled eight-piece tray, verify both fragments, and drag through the same top-level overlay path.
+
+## BUG-RESP-004 — Tray cannot scroll to overflow fragments
+
+Severity: critical gameplay. Status: FIXED 2026-09-12. Reproduction: 8 pieces at 390×844 gave tray `clientHeight=177`, `scrollHeight=310`, but computed `overflow-y: visible`; the page was globally non-scrollable. Fix: `.tray` is a `min-height: 0` bounded scrollport with `overflow-y: auto`, contained overscroll, a themed scrollbar and end fade. Touch swipes starting on a card scroll during a quick vertical gesture; a short hold activates piece drag. Regression: scroll metrics/end reachability at every target size plus real CDP touch scroll and held drag-to-katana.
+
+## BUG-RESP-005 — Dynamic piece count causes layout overflow
+
+Severity: critical gameplay. Status: FIXED 2026-09-12. Reproduction: force counts 4–12. Root cause: one crowded two-column rule was layered onto layout calculated for exactly three items. Fix: `computeLayout` accepts the live piece count and actual gameplay content box, publishes bounded row/column geometry, and `TrayView` maps every model piece into the inner grid. Counts above visible capacity scroll instead of shrinking below the preview cap. Regression: counts 1–8 at 22 viewports and defensive 12-piece phone coverage.
+
+## BUG-RESP-006 — Newly rendered piece hitbox could move before pointer-down
+
+Severity: medium input. Status: FIXED 2026-09-12. Reproduction: replace/deal a piece and press it in the same frame under browser load. Expected: the visible preview is immediately interactive at its final card position. Actual: per-card fitting was deferred to `requestAnimationFrame`, so the piece could move between coordinate measurement and pointer-down and the empty tray received the press. Fix: a piece-count relayout and first preview fit now finish synchronously inside `TrayView.render`; observer-driven resize work remains coalesced. Regression: the Fracture and Daily placement paths pass three consecutive serial repetitions, and the full suite retains immediate deal/cut interactions.
+
 ## V3-005 — Catalog blade can inherit a depleted gameplay appearance
 
 Severity: medium (presentation). Status: FIXED 2026-09-12. Identified during inspection of the old shared scene: catalog preview changed the skin and mount but retained the gameplay charge/hover/Fracture state, so opening a blade preview from a depleted run could dull the shop object. Catalog now initializes a neutral display state, and Home/catalog material response is independent of gameplay charges. Preview disposal restores the complete equipped design. Covered by catalog/equipment tests and the collection capture pass; gameplay charge rules are unchanged.

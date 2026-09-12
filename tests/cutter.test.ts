@@ -14,6 +14,18 @@ describe('blade cutter', () => {
     expect(result?.b.cells).toHaveLength(2);
   });
 
+  it('normalizes both fragments immediately after cutting an offset parent shape', () => {
+    const piece = {
+      ...createPiece('offset-line', [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 2, col: 0 }, { row: 3, col: 0 }], 'violet', 1),
+      cells: [{ row: 7, col: 4 }, { row: 8, col: 4 }, { row: 9, col: 4 }, { row: 10, col: 4 }],
+    };
+    const result = cutter.cut(piece, { orientation: 'horizontal', seam: 9 })!;
+    for (const fragment of [result.a, result.b]) {
+      expect(Math.min(...fragment.cells.map((cell) => cell.row))).toBe(0);
+      expect(Math.min(...fragment.cells.map((cell) => cell.col))).toBe(0);
+    }
+  });
+
   it('performs a valid vertical cut', () => {
     const piece = createPiece('line-h', [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], 'amber', 1);
     const result = cutter.cut(piece, { orientation: 'vertical', seam: 2 });

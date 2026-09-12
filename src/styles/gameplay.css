@@ -13,7 +13,7 @@
 
 .screen-gameplay[data-layout="portrait"] {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto var(--tray-region-h) auto;
   grid-template-areas: "hud" "board" "tray" "blade";
   justify-items: center;
   align-content: start;
@@ -24,8 +24,8 @@
   grid-template-columns: max-content var(--rail-w);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   grid-template-areas: "board hud" "board status" "board tray" "board blade";
-  column-gap: clamp(20px, 3vw, 48px);
-  row-gap: var(--s-4);
+  column-gap: var(--layout-column-gap, clamp(20px, 3vw, 48px));
+  row-gap: var(--row-gap, var(--s-4));
   align-content: center;
   align-items: center;
   justify-content: center;
@@ -108,31 +108,58 @@
 .tray {
   grid-area: tray;
   --cell: var(--tray-cell);
+  position: relative;
   width: 100%;
+  height: 100%;
   max-width: var(--board-w);
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-2);
-  min-height: calc(var(--tray-cell) * 3.4);
-  touch-action: none;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+  isolation: isolate;
 }
-.screen-gameplay[data-layout="landscape"] .tray { max-width: none; align-self: stretch; min-height: 0; }
-.screen-gameplay[data-tray="column"] .tray { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(calc(var(--tray-cell) * 3.4), calc(var(--tray-cell) * 4)); align-content: center; }
-.tray.is-crowded { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.screen-gameplay[data-tray="column"] .tray.is-crowded { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tray-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(var(--tray-columns, 3), minmax(var(--tray-card-min-size), 1fr));
+  grid-auto-rows: var(--tray-row-h, 96px);
+  gap: var(--tray-card-gap);
+  min-width: 0;
+}
+.tray:not(.is-scrollable) .tray-grid { min-height: 100%; align-content: center; }
+.screen-gameplay[data-layout="landscape"] .tray {
+  max-width: none;
+  height: min(100%, var(--tray-region-h));
+  align-self: end;
+}
+.tray-scroll-fade {
+  position: sticky;
+  z-index: 5;
+  display: block;
+  bottom: 0;
+  height: 42px;
+  margin-top: -42px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg-main-deep), transparent 4%));
+  opacity: 1;
+  transition: opacity var(--t-standard) var(--ease-out);
+}
+.tray-scroll-fade[hidden], .tray.is-at-end .tray-scroll-fade { opacity: 0; }
 
 .tray-slot {
   position: relative;
   min-width: 0;
-  min-height: calc(var(--tray-cell) * 3.4);
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-m);
+  min-height: var(--tray-card-min-size);
+  border-radius: var(--tray-card-radius);
   background: rgba(12, 14, 18, 0.55);
   box-shadow: var(--shadow-inset), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   transition: background var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast);
 }
-.tray-slot .piece { cursor: grab; transition: transform var(--t-fast) var(--ease-out), filter var(--t-fast); }
+.tray-slot.is-reflowing { transition: transform var(--t-standard) var(--ease-out), background var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast); }
+.tray-slot .piece { position: absolute; cursor: grab; touch-action: none; transition: transform var(--t-fast) var(--ease-out), filter var(--t-fast); }
 .tray-slot .piece:hover { transform: translateY(-3px) scale(1.04); filter: brightness(1.06); }
 .tray-slot .piece:active { cursor: grabbing; }
 .tray-slot.is-source { opacity: 0.25; }
@@ -158,14 +185,16 @@
   justify-content: center;
   gap: var(--s-4);
   width: 100%;
+  min-width: 0;
+  min-height: 0;
   touch-action: none;
   transition: filter var(--t-standard);
 }
 .screen-gameplay[data-layout="landscape"] .blade-zone { align-self: start; }
-.blade-dock { position: relative; width: clamp(96px, calc(var(--cell) * 2.4), 150px); height: clamp(96px, calc(var(--cell) * 2.4), 150px); display: grid; place-items: center; }
+.blade-dock { position: relative; flex: 0 0 auto; width: var(--blade-size, clamp(96px, calc(var(--cell) * 2.4), 150px)); height: var(--blade-size, clamp(96px, calc(var(--cell) * 2.4), 150px)); display: grid; place-items: center; }
 .blade-stage { position: absolute; inset: 8%; z-index: 2; }
-.blade-canvas { display: block; }
-.energy-ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.blade-canvas { display: block; pointer-events: none; }
+.energy-ring { position: absolute; inset: 0; transform: rotate(-90deg); pointer-events: none; }
 .energy-ring circle { fill: none; stroke-width: 4; }
 .energy-ring .track { stroke: rgba(255, 255, 255, 0.08); }
 .energy-ring .fill { stroke: var(--info); stroke-linecap: round; stroke-dasharray: var(--circ) var(--circ); stroke-dashoffset: calc(var(--circ) * (1 - var(--energy, 0))); transition: stroke-dashoffset var(--t-reward) var(--ease-out), stroke var(--t-standard); filter: drop-shadow(0 0 4px rgba(67, 194, 199, 0.5)); }
@@ -244,6 +273,14 @@
 @keyframes ring-forge { 0% { stroke: var(--accent); filter: drop-shadow(0 0 6px rgba(236,180,85,.7)); } 40% { stroke: #fff; filter: drop-shadow(0 0 16px #fff); } 100% { stroke: var(--info); } }
 @keyframes blade-suggest { 0%, 100% { filter: none; } 40% { filter: drop-shadow(0 0 18px rgba(255,255,255,.4)); } }
 @keyframes cut-hit { 0% { transform: translate(-50%, -50%) scale(0.96); filter: brightness(1); } 40% { transform: translate(-50%, -50%) scale(1.02, 0.9); filter: brightness(1.9); } 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } }
+
+/* Opt-in development geometry overlay (`__MIRRORBLADE_TEST__.toggleLayoutDebug`). */
+.screen-gameplay.debug-layout .board { outline: 2px solid #6fd3a5; outline-offset: 2px; }
+.screen-gameplay.debug-layout .tray { outline: 2px solid #43c2c7; outline-offset: 2px; }
+.screen-gameplay.debug-layout .tray-slot { outline: 1px solid #ecb455; outline-offset: -2px; }
+.screen-gameplay.debug-layout .tray-slot .piece { outline: 1px solid #f0eeea; }
+.screen-gameplay.debug-layout .blade-dock { outline: 2px solid #ea7d78; }
+.layout-debug-pointer { position: fixed; left: 0; top: 0; z-index: 9999; padding: 3px 6px; border-radius: 4px; background: #050608; color: #f0eeea; font: 11px/1.2 monospace; pointer-events: none; }
 
 /* ---------- V3: Mirror level, charge tier, contracts, stress ---------- */
 .mirror-stage { display: inline-flex; align-items: center; gap: 2px; margin-left: 10px; vertical-align: middle; color: var(--text-muted); }

@@ -91,8 +91,9 @@ test('signature animation has a true hold, replay, pause and an inspectable fitt
 
 test('reduced motion holds all five blades still and switching designs does not accumulate GPU resources', async ({ page }) => {
   await openGame(page, { play: false, save: { settings: { reducedMotion: true, quality: 'low' } } });
-  await expect(page.locator('[data-action="blade-motion"]:visible')).toBeDisabled();
+  await expect(page.locator('[data-action="blade-motion"]')).toHaveCount(0);
   await openBlades(page);
+  await expect(page.locator('[data-action="blade-motion"]:visible')).toBeDisabled();
   const readings: { textures: number; geometries: number }[] = [];
   for (let pass = 0; pass < 3; pass++) for (const id of ids) {
     await click(page, 'catalog-select', id);

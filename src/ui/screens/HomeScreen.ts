@@ -24,9 +24,7 @@ export function buildHomeScreen(ctx: ScreenContext): HTMLElement {
         <div class="home-meta">${shardsPill(ctx.save.currency)}${iconButton('settings', 'Settings', 'settings')}</div>
       </div>
       <div class="home-hero">
-        <div class="hero-stage" id="hero-stage"><span class="hero-mirror" aria-hidden="true"></span><div class="hero-blocks" aria-hidden="true">${heroPieces}</div>
-          <button type="button" class="hero-motion" data-action="blade-motion" aria-pressed="false" aria-label="Pause blade animation">${icon('pause')}</button>
-        </div>
+        <div class="hero-stage" id="hero-stage"><span class="hero-mirror" aria-hidden="true"></span><div class="hero-blocks" aria-hidden="true">${heroPieces}</div></div>
         <div class="hero-blade-caption" data-equipped-blade="${blade.id}" style="--blade-accent:${blade.colors[3]}"><span>Equipped katana · 0${design?.tier ?? 1}</span><b>${blade.name}<small>${design?.epithet ?? ''}</small></b></div>
         <div class="home-records">
           <div class="record"><span>Best score</span><strong>${icon('crest')}<span class="num">${best.toLocaleString()}</span></strong></div>

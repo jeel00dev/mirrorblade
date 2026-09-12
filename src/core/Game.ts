@@ -37,6 +37,7 @@ import { Ambience } from '../render/Ambience';
 import { BladeScene } from '../render/BladeScene';
 import { DragVisual } from '../render/DragVisual';
 import { GameOverCinematic, type CinematicEvent, type SlashDirection } from '../render/GameOverCinematic';
+import { rectsOverlap } from '../render/Layout';
 import { GameplayView } from '../ui/GameplayView';
 import { icon } from '../ui/Icons';
 import { ScreenManager, type ScreenId } from '../ui/ScreenManager';
@@ -213,6 +214,7 @@ export class Game {
     this.blade.dispose();
     this.ambience.dispose();
     this.view.effects.dispose();
+    this.view.dispose();
     this.audio.dispose();
     this.stopMuteObserver();
     if (this.resolveTimer !== null) window.clearTimeout(this.resolveTimer);
@@ -303,6 +305,10 @@ export class Game {
   public debugForceFracture(): void {
     this.fracture.forceWarning(this.clock.now());
     this.onFractureWarning();
+  }
+
+  public debugLayout(enabled: boolean): void {
+    this.view.setLayoutDebug(enabled);
   }
 
   public debugSetOnboarding(complete: boolean): void {
@@ -638,7 +644,8 @@ export class Game {
     this.audio.play('pickup');
     const sourceRect = element.getBoundingClientRect();
     const metrics = this.view.metrics();
-    const visual = new DragVisual(piece, sourceRect, metrics.cell, metrics.trayCell);
+    const previewCell = this.view.tray.previewCell(pieceId) ?? metrics.trayCell;
+    const visual = new DragVisual(piece, sourceRect, metrics.cell, previewCell);
     this.view.tray.markSource(pieceId, true);
     this.drag = { piece, visual, sourceRect, point, preview: null, anchor: null, overBlade: false, cut: null, bladeSoundPlayed: false };
     this.phase.transition('DRAGGING');
@@ -656,7 +663,7 @@ export class Game {
     drag.visual.moveTo(x, y);
     const visualRect = drag.visual.rect();
     const bladeRect = this.view.bladeZone.querySelector<HTMLElement>('.blade-dock')!.getBoundingClientRect();
-    drag.overBlade = rectsIntersect(visualRect, bladeRect);
+    drag.overBlade = rectsOverlap(visualRect, bladeRect);
     drag.visual.setOverBlade(drag.overBlade);
     if (drag.overBlade) {
       this.view.board.clearGhost();
@@ -722,7 +729,9 @@ export class Game {
   private rejectDrag(drag: DragSession, bladeReject: boolean): void {
     this.view.board.clearGhost();
     const metrics = this.view.metrics();
-    drag.visual.returnTo(drag.sourceRect, metrics.trayCell, metrics.cell);
+    const currentSource = this.view.tray.pieceElement(drag.piece.id)?.getBoundingClientRect() ?? drag.sourceRect;
+    const previewCell = this.view.tray.previewCell(drag.piece.id) ?? metrics.trayCell;
+    drag.visual.returnTo(currentSource, previewCell, metrics.cell);
     this.view.tray.markSource(drag.piece.id, false);
     this.audio.play(bladeReject ? 'invalid' : 'return');
     if (bladeReject) {
@@ -979,7 +988,11 @@ export class Game {
     this.refreshHUD();
     if (spent.redeemed) window.setTimeout(() => { this.audio.play('blade-forged'); this.view.callouts.show('BLADE REFORGED', 'forge', 'banked energy'); }, 200);
     window.setTimeout(() => {
-      this.view.tray.render(this.tray.list(), { arriving: [result.a.id, result.b.id] });
+      this.view.tray.render(this.tray.list(), {
+        arriving: [result.a.id, result.b.id],
+        reveal: [result.a.id, result.b.id],
+        smoothReveal: !this.save.settings.reducedMotion,
+      });
       if (this.phase.current() === 'CUTTING') this.phase.transition('PLAYING');
       if (this.tutorialStep === 4) this.advanceTutorial(5);
       this.afterTransaction();
@@ -1157,7 +1170,7 @@ export class Game {
       control.disabled = reduced;
       control.setAttribute('aria-pressed', String(paused || reduced));
       control.setAttribute('aria-label', reduced ? 'Blade animation disabled by reduced motion' : paused ? 'Resume blade animation' : 'Pause blade animation');
-      control.innerHTML = icon(paused || reduced ? 'play' : 'pause') + (control.classList.contains('hero-motion') ? '' : `<span>${reduced ? 'Still' : paused ? 'Resume' : 'Pause'}</span>`);
+      control.innerHTML = icon(paused || reduced ? 'play' : 'pause') + `<span>${reduced ? 'Still' : paused ? 'Resume' : 'Pause'}</span>`;
     });
     const replay = this.screens.activeElement()?.querySelector<HTMLButtonElement>('[data-action="blade-replay"]');
     if (replay) replay.disabled = reduced;
@@ -1601,9 +1614,6 @@ export class Game {
   };
 }
 
-function rectsIntersect(a: DOMRect, b: DOMRect): boolean {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-}
 
 function longAxis(piece: Piece): 'horizontal' | 'vertical' {
   const dimensions = pieceDimensions(piece);

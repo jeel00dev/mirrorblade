@@ -15,6 +15,7 @@ declare global {
       skipCinematic: () => boolean;
       forceOverdrive: () => void;
       forceFracture: () => void;
+      toggleLayoutDebug: (enabled: boolean) => void;
     };
   }
 }

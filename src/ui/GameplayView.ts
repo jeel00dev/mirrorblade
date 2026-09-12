@@ -34,7 +34,10 @@ export class GameplayView {
   private readonly hintBar: HTMLElement;
   private readonly stageMark: HTMLElement;
   private readonly ticks: SVGGElement;
+  private readonly resizeObserver: ResizeObserver;
   private layout: LayoutMetrics;
+  private relayoutFrame = 0;
+  private debugPointer: HTMLElement | null = null;
   private lastTier = 0;
   private scoreTween = 0;
   private lastScore = 0;
@@ -62,7 +65,7 @@ export class GameplayView {
       <div class="hint-bar" id="hint-bar" hidden></div>`;
     host.append(this.element);
     this.board = new BoardView(this.element.querySelector<HTMLElement>('#board')!);
-    this.tray = new TrayView(this.element.querySelector<HTMLElement>('#tray')!);
+    this.tray = new TrayView(this.element.querySelector<HTMLElement>('#tray')!, () => this.relayout());
     this.boardWrap = this.element.querySelector<HTMLElement>('.board-wrap')!;
     this.effects = new EffectsLayer(this.element.querySelector<HTMLElement>('.effects-host')!);
     this.callouts = new Callouts(this.element.querySelector<HTMLElement>('.callout-host')!);
@@ -77,17 +80,44 @@ export class GameplayView {
     this.hintBar = this.element.querySelector<HTMLElement>('#hint-bar')!;
     this.stageMark = this.element.querySelector<HTMLElement>('#mirror-stage')!;
     this.ticks = this.element.querySelector<SVGGElement>('#energy-ticks')!;
-    this.layout = computeLayout(window.innerWidth, window.innerHeight);
+    this.layout = computeLayout(window.innerWidth, window.innerHeight, 1);
     this.relayout();
+    this.resizeObserver = new ResizeObserver(() => this.scheduleRelayout());
+    this.resizeObserver.observe(this.element, { box: 'border-box' });
   }
 
   public relayout(): LayoutMetrics {
-    const rect = this.element.getBoundingClientRect();
-    const width = rect.width || window.innerWidth;
-    const height = rect.height || window.innerHeight;
-    this.layout = computeLayout(width, height);
+    const style = getComputedStyle(this.element);
+    const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+    const verticalPadding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+    const width = Math.max(1, this.element.clientWidth - horizontalPadding) || window.innerWidth;
+    const height = Math.max(1, this.element.clientHeight - verticalPadding) || window.innerHeight;
+    this.layout = computeLayout(width, height, Math.max(1, this.tray.count()));
     applyLayout(this.element, this.layout);
+    this.tray.setMaximumPreviewCell(this.layout.trayCell);
     return this.layout;
+  }
+
+  public dispose(): void {
+    if (this.relayoutFrame) cancelAnimationFrame(this.relayoutFrame);
+    this.resizeObserver.disconnect();
+    this.tray.dispose();
+    window.removeEventListener('pointermove', this.onDebugPointerMove);
+    this.debugPointer?.remove();
+  }
+
+  /** Development-only geometry overlay, exposed through the Vite debug bridge. */
+  public setLayoutDebug(enabled: boolean): void {
+    this.element.classList.toggle('debug-layout', enabled);
+    window.removeEventListener('pointermove', this.onDebugPointerMove);
+    this.debugPointer?.remove();
+    this.debugPointer = null;
+    if (!enabled) return;
+    this.debugPointer = document.createElement('output');
+    this.debugPointer.className = 'layout-debug-pointer';
+    this.debugPointer.textContent = '0, 0';
+    document.body.append(this.debugPointer);
+    window.addEventListener('pointermove', this.onDebugPointerMove, { passive: true });
   }
 
   public metrics(): LayoutMetrics {
@@ -307,4 +337,18 @@ export class GameplayView {
     const rect = this.effects.canvas.getBoundingClientRect();
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
+
+  private scheduleRelayout(): void {
+    if (this.relayoutFrame) cancelAnimationFrame(this.relayoutFrame);
+    this.relayoutFrame = requestAnimationFrame(() => {
+      this.relayoutFrame = 0;
+      this.relayout();
+    });
+  }
+
+  private readonly onDebugPointerMove = (event: PointerEvent): void => {
+    if (!this.debugPointer) return;
+    this.debugPointer.textContent = `${Math.round(event.clientX)}, ${Math.round(event.clientY)}`;
+    this.debugPointer.style.transform = `translate3d(${event.clientX + 12}px, ${event.clientY + 12}px, 0)`;
+  };
 }

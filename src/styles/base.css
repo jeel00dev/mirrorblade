@@ -60,20 +60,20 @@ h1, h2, h3, p { margin: 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- Themed scrolling (V3) ---------- */
-.screen-body, .item-strip, .screen-pause, .screen-gameover {
+.screen-body, .item-strip, .screen-pause, .screen-gameover, .tray {
   scrollbar-width: thin;
   scrollbar-color: #3e444d #15181d;
 }
-.screen-body::-webkit-scrollbar, .item-strip::-webkit-scrollbar { width: 10px; height: 10px; }
-.screen-body::-webkit-scrollbar-track, .item-strip::-webkit-scrollbar-track { background: #15181d; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 1px 2px rgba(0, 0, 0, 0.5); }
-.screen-body::-webkit-scrollbar-thumb, .item-strip::-webkit-scrollbar-thumb {
+.screen-body::-webkit-scrollbar, .item-strip::-webkit-scrollbar, .tray::-webkit-scrollbar { width: 10px; height: 10px; }
+.screen-body::-webkit-scrollbar-track, .item-strip::-webkit-scrollbar-track, .tray::-webkit-scrollbar-track { background: #15181d; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 1px 2px rgba(0, 0, 0, 0.5); }
+.screen-body::-webkit-scrollbar-thumb, .item-strip::-webkit-scrollbar-thumb, .tray::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #4a515b, #363b43);
   border-radius: 999px;
   border: 2px solid #15181d;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
-.screen-body::-webkit-scrollbar-thumb:hover, .item-strip::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #5b636e, #444a53); }
-.screen-body::-webkit-scrollbar-thumb:active, .item-strip::-webkit-scrollbar-thumb:active { background: linear-gradient(180deg, #6a7380, #4c535d); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(67, 194, 199, 0.35); }
+.screen-body::-webkit-scrollbar-thumb:hover, .item-strip::-webkit-scrollbar-thumb:hover, .tray::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #5b636e, #444a53); }
+.screen-body::-webkit-scrollbar-thumb:active, .item-strip::-webkit-scrollbar-thumb:active, .tray::-webkit-scrollbar-thumb:active { background: linear-gradient(180deg, #6a7380, #4c535d); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(67, 194, 199, 0.35); }
 .screen-body::-webkit-scrollbar-corner { background: transparent; }
 
 /* Bottom fade: there is more below */

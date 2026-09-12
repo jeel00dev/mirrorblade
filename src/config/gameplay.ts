@@ -7,6 +7,8 @@ export const SAVE_DEBOUNCE_MS = 650;
 
 /** Pointer distance (CSS px) before a press on a tray piece becomes a drag instead of a tap-to-rotate. */
 export const DRAG_START_THRESHOLD = 7;
+/** In an overflowing tray, a short hold distinguishes a vertical piece drag from a scroll swipe. */
+export const TRAY_TOUCH_DRAG_HOLD_MS = 160;
 /** Touch-drag lifts the piece above the finger so the landing cells stay visible. */
 export const DRAG_TOUCH_OFFSET = 84;
 export const DRAG_MOUSE_OFFSET = 10;

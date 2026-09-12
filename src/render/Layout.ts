@@ -3,63 +3,120 @@ export type LayoutMode = 'portrait' | 'landscape';
 export interface LayoutMetrics {
   mode: LayoutMode;
   cell: number;
+  /** Maximum resting preview cell size; each piece is fitted below this cap. */
   trayCell: number;
   railWidth: number;
   rowGap: number;
-  trayOrientation: 'row' | 'column';
+  columnGap: number;
+  trayColumns: number;
+  trayRowHeight: number;
+  trayHeight: number;
+  bladeSize: number;
   width: number;
   height: number;
 }
 
 /** Board size in cells plus frame padding (0.24 cell each side) — keep in sync with board.css. */
 const BOARD_CELLS_WITH_FRAME = 9 + 0.48;
-/** Widest piece in the library. */
-const MAX_PIECE_SPAN = 5;
+const TRAY_GAP = 8;
+/** When more rows exist than fit, this fraction of the next row stays visible so the scroll is self-evident. */
+const PEEK_ROW = 0.3;
+
+export interface RectEdges {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+export function rectsOverlap(a: RectEdges, b: RectEdges): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function tenth(value: number): number {
+  return Math.floor(value * 10) / 10;
+}
 
 /**
- * Computes the gameplay layout from both viewport dimensions and publishes it as CSS variables.
- * Replaces V1's nested min() chains, which could not reason about width and height together.
+ * Computes gameplay geometry from the actual content box available to the game.
+ * Piece count changes tray tracks/capacity, while the blade always retains its own sibling region.
  */
-export function computeLayout(width: number, height: number): LayoutMetrics {
-  const landscape = width >= 700 && width >= height * 1.12;
+export function computeLayout(width: number, height: number, pieceCount = 3): LayoutMetrics {
+  const safeCount = Math.max(1, Math.floor(pieceCount));
+  const landscape = width >= height * 1.25;
+
   if (landscape) {
-    const pad = width >= 1200 ? 28 : 16;
-    const gap = width >= 1200 ? 48 : 24;
-    const minRail = 268;
-    const maxRail = width >= 1600 ? 460 : 420;
-    const boardSize = Math.max(240, Math.min(height - pad * 2, width - minRail - gap - pad * 2, 940));
-    const railWidth = Math.round(Math.min(maxRail, width - boardSize - gap - pad * 2));
-    const cell = Math.floor((boardSize / BOARD_CELLS_WITH_FRAME) * 10) / 10;
-    const railInner = railWidth - 8;
-    // Rail budget outside the tray: HUD 64 + status 36 + blade dock (≤150) + three 16px gaps.
-    const railBudget = 64 + 36 + Math.min(150, Math.max(96, cell * 2.4)) + 48 + 28;
-    const columnCell = Math.floor(Math.min(cell * 0.66, railInner / (MAX_PIECE_SPAN + 0.8), (height - railBudget - pad * 2) / 3 / 3.6));
-    const rowCell = Math.floor(Math.min(cell * 0.62, (railInner - 16) / 3 / (MAX_PIECE_SPAN + 0.5), (height - railBudget - pad * 2) / 3.5));
-    const trayOrientation: 'row' | 'column' = columnCell >= 30 && columnCell >= rowCell ? 'column' : 'row';
-    const trayCell = trayOrientation === 'column' ? columnCell : rowCell;
-    return { mode: 'landscape', cell, trayCell: Math.max(14, trayCell), railWidth, rowGap: 16, trayOrientation, width, height };
+    const short = height < 430;
+    const columnGap = width >= 1160 ? 48 : width < 620 ? 16 : 24;
+    const minRail = width < 620 ? 232 : 268;
+    const maxRail = width >= 1580 ? 460 : width < 700 ? 280 : 420;
+    const boardSize = clamp(Math.min(height, width - minRail - columnGap, 940), 180, 940);
+    const railWidth = Math.max(minRail, Math.min(maxRail, width - boardSize - columnGap));
+    const cell = tenth(boardSize / BOARD_CELLS_WITH_FRAME);
+    const headerHeight = short ? 48 : 64;
+    const statusHeight = 36;
+    const bladeSize = clamp(cell * 2.4, short ? 76 : 96, 150);
+    const rowGap = short ? 6 : 16;
+    const trayBudget = Math.max(64, height - headerHeight - statusHeight - bladeSize - rowGap * 3);
+    const trayColumns = safeCount <= 3 ? safeCount : 2;
+    const desiredRows = Math.ceil(safeCount / trayColumns);
+    const visibleRows = Math.max(1, Math.min(desiredRows, height >= 650 ? 4 : 2));
+    const minRow = short ? 78 : 88;
+    const maxRow = height >= 650 ? 132 : 112;
+    const peek = desiredRows > visibleRows ? PEEK_ROW : 0;
+    const gaps = TRAY_GAP * (visibleRows - 1) + (peek ? TRAY_GAP : 0);
+    const fittedRow = (trayBudget - gaps) / (visibleRows + peek);
+    const trayRowHeight = clamp(fittedRow, Math.min(minRow, trayBudget), maxRow);
+    const trayHeight = Math.min(trayBudget, trayRowHeight * (visibleRows + peek) + gaps);
+    const trayCell = clamp(Math.min(cell * 0.66, trayRowHeight / 2.8), 14, 42);
+    return {
+      mode: 'landscape', cell, trayCell, railWidth: Math.round(railWidth), rowGap, columnGap,
+      trayColumns, trayRowHeight: Math.floor(trayRowHeight), trayHeight: Math.floor(trayHeight),
+      bladeSize: Math.floor(bladeSize), width, height,
+    };
   }
-  const pad = width < 400 ? 12 : 16;
-  const header = height < 700 ? 56 : 64;
-  const minGap = 12;
-  const boardMax = Math.min(width - pad * 2, 760);
-  const trayHeightFor = (trayCell: number): number => trayCell * 3.4;
-  const bladeHeight = Math.min(150, Math.max(96, height * 0.16));
-  // First pass: board limited by width, then check the height budget.
-  let cell = Math.floor((boardMax / BOARD_CELLS_WITH_FRAME) * 10) / 10;
-  const slotWidth = (width - pad * 2 - 16) / 3;
-  let trayCell = Math.floor(Math.min(cell * 0.62, slotWidth / (MAX_PIECE_SPAN + 0.5)));
-  let total = header + cell * BOARD_CELLS_WITH_FRAME + trayHeightFor(trayCell) + bladeHeight + minGap * 3 + pad;
-  if (total > height) {
-    const available = height - header - trayHeightFor(trayCell) - bladeHeight - minGap * 3 - pad;
-    cell = Math.floor((Math.max(200, available) / BOARD_CELLS_WITH_FRAME) * 10) / 10;
-    trayCell = Math.floor(Math.min(cell * 0.62, slotWidth / (MAX_PIECE_SPAN + 0.5), trayCell));
-    total = header + cell * BOARD_CELLS_WITH_FRAME + trayHeightFor(trayCell) + bladeHeight + minGap * 3 + pad;
+
+  const compact = height < 650;
+  const headerHeight = compact ? 52 : 64;
+  const bladeSize = clamp(height * 0.14, compact ? 80 : 96, 132);
+  const baseGap = compact ? 8 : 12;
+  const trayColumns = safeCount <= 3 ? safeCount : width < 330 ? 2 : 3;
+  const desiredRows = Math.ceil(safeCount / trayColumns);
+  const visibleRowLimit = compact && height < 580 ? 1 : 2;
+  const visibleRows = Math.max(1, Math.min(desiredRows, safeCount <= 3 ? 1 : visibleRowLimit));
+  const minRow = compact ? 78 : 88;
+  const maxRow = width >= 600 ? 116 : 104;
+  const preferredRow = clamp((width / trayColumns) * 0.58, minRow, maxRow);
+  const peek = desiredRows > visibleRows ? PEEK_ROW : 0;
+  const gaps = TRAY_GAP * (visibleRows - 1) + (peek ? TRAY_GAP : 0);
+  const desiredTrayHeight = preferredRow * (visibleRows + peek) + gaps;
+  const boardByWidth = Math.min(width, 760);
+  const minimumBoard = Math.min(boardByWidth, compact ? 196 : 224);
+  const heightAfterFixed = height - headerHeight - bladeSize - baseGap * 3;
+  let boardSize = Math.min(boardByWidth, heightAfterFixed - desiredTrayHeight);
+  boardSize = Math.max(minimumBoard, boardSize);
+  let trayHeight = heightAfterFixed - boardSize;
+  const oneRowMinimum = Math.min(minRow, Math.max(64, heightAfterFixed - minimumBoard));
+  if (trayHeight < oneRowMinimum) {
+    boardSize = Math.max(minimumBoard, boardSize - (oneRowMinimum - trayHeight));
+    trayHeight = heightAfterFixed - boardSize;
   }
-  // Spread leftover height into the gaps (capped) so tall phones do not pile everything at the top.
-  const leftover = Math.max(0, height - total);
-  const rowGap = Math.round(Math.min(40, minGap + leftover / 4));
-  return { mode: 'portrait', cell, trayCell: Math.max(14, trayCell), railWidth: 0, rowGap, trayOrientation: 'row', width, height };
+  trayHeight = Math.max(64, Math.min(desiredTrayHeight, trayHeight));
+  const fittedRow = (trayHeight - gaps) / (visibleRows + peek);
+  const trayRowHeight = clamp(fittedRow, Math.min(64, fittedRow), maxRow);
+  const cell = tenth(boardSize / BOARD_CELLS_WITH_FRAME);
+  const trayCell = clamp(Math.min(cell * 0.68, trayRowHeight / 2.7), 14, 42);
+  const used = headerHeight + boardSize + trayHeight + bladeSize + baseGap * 3;
+  const rowGap = Math.floor(Math.min(24, baseGap + Math.max(0, height - used) / 4));
+  return {
+    mode: 'portrait', cell, trayCell, railWidth: 0, rowGap, columnGap: 0,
+    trayColumns, trayRowHeight: Math.floor(trayRowHeight), trayHeight: Math.floor(trayHeight),
+    bladeSize: Math.floor(bladeSize), width, height,
+  };
 }
 
 export function applyLayout(root: HTMLElement, metrics: LayoutMetrics): void {
@@ -68,6 +125,10 @@ export function applyLayout(root: HTMLElement, metrics: LayoutMetrics): void {
   root.style.setProperty('--tray-cell', `${metrics.trayCell}px`);
   root.style.setProperty('--rail-w', `${metrics.railWidth}px`);
   root.style.setProperty('--row-gap', `${metrics.rowGap}px`);
+  root.style.setProperty('--layout-column-gap', `${metrics.columnGap}px`);
+  root.style.setProperty('--tray-columns', String(metrics.trayColumns));
+  root.style.setProperty('--tray-row-h', `${metrics.trayRowHeight}px`);
+  root.style.setProperty('--tray-region-h', `${metrics.trayHeight}px`);
+  root.style.setProperty('--blade-size', `${metrics.bladeSize}px`);
   root.dataset.layout = metrics.mode;
-  root.dataset.tray = metrics.trayOrientation;
 }
