@@ -1,28 +1,18 @@
 export const ECONOMY = {
-  scorePerShard: 260,
-  minimumRunShards: 8,
-  maximumBaseRunShards: 120,
-  newBestBonus: 12,
   dailyMilestoneReward: 30,
   achievementRewardDefault: 20,
-  /** Small bonuses for run events so strong runs feel rewarded without inflating the economy. */
-  perOverdrive: 4,
-  perClutch: 6,
 } as const;
 
-export interface RunPayoutInput {
-  score: number;
-  isNewBest: boolean;
-  overdrives: number;
-  clutches: number;
+export interface ClearShardReward {
+  /** Completed rows plus completed columns. */
+  lines: number;
+  /** Single 1×, Double 2×, Triple 3×, and the actual line count for Max. */
+  multiplier: number;
+  total: number;
 }
 
-export function calculateRunShards(input: RunPayoutInput): number {
-  if (input.score <= 0) return 0;
-  const base = Math.min(
-    ECONOMY.maximumBaseRunShards,
-    Math.max(ECONOMY.minimumRunShards, Math.floor(input.score / ECONOMY.scorePerShard) + 8),
-  );
-  const events = Math.min(30, input.overdrives * ECONOMY.perOverdrive + input.clutches * ECONOMY.perClutch);
-  return base + events + (input.isNewBest ? ECONOMY.newBestBonus : 0);
+/** Normal-play currency is the completed line count multiplied by its clear tier: 1, 4, 9, 16… */
+export function clearShardReward(lineCount: number): ClearShardReward {
+  const lines = Number.isFinite(lineCount) ? Math.max(0, Math.floor(lineCount)) : 0;
+  return { lines, multiplier: lines, total: lines * lines };
 }

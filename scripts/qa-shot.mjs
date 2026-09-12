@@ -1,6 +1,6 @@
 /**
  * Quick QA screenshot. Usage:
- *   node scripts/qa-shot.mjs <width> <height> <out.png> [--play] [--state overdrive|fracture|stress|contract]
+ *   node scripts/qa-shot.mjs <width> <height> <out.png> [--play] [--state overdrive|fracture|stress|contract|deadline]
  *        [--screen shop|collection|settings|stats|achievements|daily|howto|pause|gameover]
  *        [--fresh] [--score N] [--a11y accessible|contrast|reduced] [--url http://127.0.0.1:5173]
  *        [--cinematic <ms>]   capture the game-over cinematic this many ms after the run ends (implies --screen gameover)
@@ -65,6 +65,7 @@ if (has('play') || screen === 'pause' || screen === 'gameover' || flag('state') 
     }, { count: pieceCount, vertical: has('vertical') });
     await page.waitForTimeout(260);
   }
+  if (state === 'deadline') { await page.evaluate(() => window.__MIRRORBLADE_TEST__.setPlacementDeadline(5_000)); await page.waitForTimeout(200); }
   if (screen === 'pause') { await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
   if (screen === 'gameover' || flag('cinematic')) { await page.evaluate(() => { const t = window.__MIRRORBLADE_TEST__; t.game.debugSetScore(13410); t.endRun(); }); await page.waitForTimeout(Number(flag('cinematic') ?? 2400)); }
 } else if (screen) {

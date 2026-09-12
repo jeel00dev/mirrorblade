@@ -39,6 +39,7 @@ async function boot(): Promise<void> {
       forcePiece: (definitionId, tone) => game.debugForcePiece(definitionId, tone),
       fillBoard: (cells, tone) => game.debugFillBoard(cells, tone),
       endRun: (reason) => game.debugEndRun(reason),
+      setPlacementDeadline: (remainingMs) => game.debugSetPlacementDeadline(remainingMs),
       skipCinematic: () => game.debugSkipCinematic(),
       forceOverdrive: () => game.debugForceOverdrive(),
       forceFracture: () => game.debugForceFracture(),

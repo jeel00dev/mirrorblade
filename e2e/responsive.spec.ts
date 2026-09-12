@@ -47,7 +47,9 @@ for (const [width, height] of viewports) {
     await page.mouse.move(1, 1);
     for (const count of pieceCounts) {
       await forceTray(page, count);
-      for (const selector of ['.board', '#tray', '#blade-zone', '.hud-score', '.hud-controls']) {
+      // The final-five placement countdown lives on the board and must stay on screen at every size.
+      await page.evaluate(() => window.__MIRRORBLADE_TEST__!.setPlacementDeadline(5_000));
+      for (const selector of ['.board', '#tray', '#blade-zone', '.hud-score', '.hud-controls', '.placement-deadline']) {
         await assertInViewport(page, selector, width, height);
       }
       const result = await page.evaluate(() => {

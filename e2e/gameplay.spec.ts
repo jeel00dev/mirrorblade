@@ -38,7 +38,11 @@ test('tap rotates a tray piece and R rotates from the keyboard; cut fragments ro
 
 test('cuts a piece into two fragments, spends one blade, and rejects with zero blades', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => window.__MIRRORBLADE_TEST__!.forcePiece('l4'));
+  await page.evaluate(() => {
+    window.__MIRRORBLADE_TEST__!.forcePiece('l4');
+    window.__MIRRORBLADE_TEST__!.setPlacementDeadline(9_000);
+  });
+  const beforeCut = (await state(page)).placementDeadline.remainingMs as number;
   const source = await center(page, '[data-piece-id]');
   const blade = await center(page, '[data-testid="blade"] .blade-dock');
   await drag(page, source, blade);
@@ -46,6 +50,7 @@ test('cuts a piece into two fragments, spends one blade, and rejects with zero b
   const cut = await state(page);
   expect(cut.tray).toHaveLength(2);
   expect(cut.tray.every((piece: { cutGeneration: number }) => piece.cutGeneration === 1)).toBe(true);
+  expect(cut.placementDeadline.remainingMs).toBeLessThan(beforeCut); // Cutting is preparation; only a placed polygon resets the ordinary deadline.
 
   await page.evaluate(() => { window.__MIRRORBLADE_TEST__!.setBlades(0); window.__MIRRORBLADE_TEST__!.forcePiece('l4'); });
   await expect(page.locator('[data-testid="blade"]')).toHaveClass(/is-empty/);
@@ -75,6 +80,7 @@ test('touch drag lifts the piece above the finger and still lands on the intende
 test('first session teaches place, mirror, rotate, cut and energy in play', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openGame(page, { onboardingComplete: false });
+  expect((await state(page)).placementDeadline.active).toBe(false);
   await expect(page.locator('#hint-bar')).toContainText('Drag a piece');
   await page.evaluate(() => window.__MIRRORBLADE_TEST__!.forcePiece('single'));
   const source = await center(page, '[data-piece-id]');
@@ -93,6 +99,7 @@ test('first session teaches place, mirror, rotate, cut and energy in play', asyn
   await page.locator('#hint-bar button').click();
   await expect(page.locator('#hint-bar')).toBeHidden();
   await expect.poll(() => state(page).then((s) => s.tutorialStep)).toBe(0);
+  expect((await state(page)).placementDeadline.active).toBe(true);
 });
 
 test('handles resize during pointer capture without losing the piece', async ({ page }) => {
@@ -131,6 +138,102 @@ test('line clears award blade energy and a full meter forges a blade', async ({ 
   await expect(page.locator('#blade-count')).toHaveText('4');
 });
 
+test('score and run shards follow the deterministic simultaneous-line formulas', async ({ page }) => {
+  await openGame(page, { save: { currency: 0, achievements: ['first-reflection', 'turned'] } });
+  await page.evaluate(() => {
+    const t = window.__MIRRORBLADE_TEST__!;
+    const cells = [];
+    for (let col = 0; col < 9; col += 1) if (col !== 4) {
+      cells.push({ row: 2, col }, { row: 6, col });
+    }
+    cells.push({ row: 0, col: 0 }, { row: 0, col: 8 });
+    t.fillBoard(cells, 'amber');
+    t.forcePiece('line5', 'cyan');
+  });
+  await page.keyboard.press('r');
+  const source = await center(page, '[data-piece-id]');
+  const target = await boardCellPoint(page, 4, 4);
+  await drag(page, source, { x: target.x, y: target.y + 10 });
+  await expect.poll(() => state(page).then((s) => s.phase)).toBe('PLAYING');
+  const afterDouble = await state(page);
+  expect(afterDouble.score).toBe(350); // 5 placed cells + 200 line base + one 100-point line pair.
+  expect(afterDouble.runShards).toBe(4); // two lines × the Double 2× tier.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mirrorblade.save')!).currency)).toBe(0);
+
+  await page.evaluate(() => window.__MIRRORBLADE_TEST__!.endRun());
+  await expect.poll(() => page.evaluate(() => window.__MIRRORBLADE_TEST__!.skipCinematic())).toBe(true);
+  await expect(page.locator('.results')).toContainText('+4 Mirror Shards');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mirrorblade.save')!).currency)).toBe(4);
+});
+
+test('a placement without a row or column clear awards no run or saved shards', async ({ page }) => {
+  await openGame(page, { save: { currency: 0, achievements: ['first-reflection'] } });
+  await page.evaluate(() => window.__MIRRORBLADE_TEST__!.forcePiece('single'));
+  const source = await center(page, '[data-piece-id]');
+  const target = await boardCellPoint(page, 0, 1);
+  await drag(page, source, { x: target.x, y: target.y + 10 });
+  await expect.poll(() => state(page).then((s) => s.phase)).toBe('PLAYING');
+  expect((await state(page)).score).toBe(20); // One cell plus its distinct mirror, with no completed line.
+  expect((await state(page)).runShards).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mirrorblade.save')!).currency)).toBe(0);
+
+  await page.evaluate(() => window.__MIRRORBLADE_TEST__!.endRun());
+  await expect.poll(() => page.evaluate(() => window.__MIRRORBLADE_TEST__!.skipCinematic())).toBe(true);
+  await expect(page.locator('.results')).toContainText('+0 Mirror Shards');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mirrorblade.save')!).currency)).toBe(0);
+});
+
+test('placement deadline warns at five, resets after a valid polygon, and reaches the ten-second late-game floor', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => {
+    const t = window.__MIRRORBLADE_TEST__!;
+    t.forcePiece('single');
+    t.setPlacementDeadline(4_900);
+  });
+  await expect(page.locator('body')).toHaveClass(/state-deadline-final/);
+  await expect(page.locator('.placement-deadline')).toBeVisible();
+  await expect(page.locator('.placement-deadline strong')).toHaveText('5');
+  await expect(page.locator('.placement-deadline')).toHaveAttribute('role', 'timer');
+
+  const source = await center(page, '[data-piece-id]');
+  const target = await boardCellPoint(page, 0, 1);
+  await drag(page, source, { x: target.x, y: target.y + 10 });
+  await expect(page.locator('.placement-deadline')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/state-deadline-final/);
+  await expect.poll(() => state(page).then((s) => s.phase)).toBe('PLAYING');
+  let deadline = (await state(page)).placementDeadline;
+  expect(deadline.active).toBe(true);
+  expect(deadline.windowMs).toBe(30_000);
+  expect(deadline.remainingMs).toBeGreaterThan(29_500);
+
+  await page.evaluate(() => {
+    const t = window.__MIRRORBLADE_TEST__!;
+    t.setScore(30_000);
+    t.forcePiece('single');
+  });
+  const lateSource = await center(page, '[data-piece-id]');
+  const lateTarget = await boardCellPoint(page, 1, 1);
+  await drag(page, lateSource, { x: lateTarget.x, y: lateTarget.y + 10 });
+  await expect.poll(() => state(page).then((s) => s.phase)).toBe('PLAYING');
+  deadline = (await state(page)).placementDeadline;
+  expect(deadline.windowMs).toBe(10_000);
+  expect(deadline.remainingMs).toBeGreaterThan(9_500);
+});
+
+test('placement deadline timeout uses the existing katana cinematic and names the result', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => {
+    const t = window.__MIRRORBLADE_TEST__!;
+    t.fillBoard([{ row: 2, col: 1 }, { row: 2, col: 7 }, { row: 5, col: 4 }], 'cyan');
+    t.setPlacementDeadline(120);
+  });
+  await expect.poll(() => state(page).then((s) => s.phase), { timeout: 3_000 }).toBe('CINEMATIC');
+  await expect(page.locator('.cinematic-layer')).toBeVisible();
+  await expect(page.locator('.cine-block')).toHaveCount(3);
+  await expect.poll(() => state(page).then((s) => s.phase), { timeout: 5_000 }).toBe('OVER');
+  await expect(page.locator('.results')).toContainText('Time ran out');
+});
+
 test('Overdrive doubles the score of moves committed while it is active', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => { window.__MIRRORBLADE_TEST__!.forcePiece('single'); });
@@ -157,6 +260,7 @@ test('Fracture warns, times each placement, resets on placement, escapes on a cl
     t.forceFracture();
   });
   await expect.poll(() => state(page).then((s) => s.fracture.phase)).toBe('warning');
+  expect((await state(page)).placementDeadline.active).toBe(false);
   await expect(page.locator('#hint-bar')).toContainText('escape');
   await expect.poll(() => state(page).then((s) => s.fracture.phase), { timeout: 6000 }).toBe('active');
   await expect(page.locator('.status-chip.fracture')).toBeVisible();
@@ -173,6 +277,8 @@ test('Fracture warns, times each placement, resets on placement, escapes on a cl
   const second = await center(page, '[data-piece-id]');
   await drag(page, second, await boardCellPoint(page, 8, 4).then((p) => ({ x: p.x, y: p.y + 10 })));
   await expect.poll(() => state(page).then((s) => s.fracture.phase)).toBe('idle');
+  await expect.poll(() => state(page).then((s) => s.phase)).toBe('PLAYING');
+  expect((await state(page)).placementDeadline.active).toBe(true);
   await expect(page.locator('body')).not.toHaveClass(/state-fracture/);
 
   // Timeout ends the run with the fracture result screen.
@@ -183,17 +289,22 @@ test('Fracture warns, times each placement, resets on placement, escapes on a cl
 
 test('timers pause while the tab is hidden and while a menu is open', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => window.__MIRRORBLADE_TEST__!.forceOverdrive());
+  await page.evaluate(() => {
+    window.__MIRRORBLADE_TEST__!.forceOverdrive();
+    window.__MIRRORBLADE_TEST__!.setPlacementDeadline(9_000);
+  });
   await page.waitForTimeout(300);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
   });
   const hiddenAt = (await state(page)).overdrive.remainingMs as number;
+  const hiddenDeadlineAt = (await state(page)).placementDeadline.remainingMs as number;
   await page.waitForTimeout(700);
   const stillHidden = await state(page);
   expect(stillHidden.gates).toContain('hidden');
   expect(Math.abs((stillHidden.overdrive.remainingMs as number) - hiddenAt)).toBeLessThan(40);
+  expect(Math.abs((stillHidden.placementDeadline.remainingMs as number) - hiddenDeadlineAt)).toBeLessThan(40);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
@@ -201,11 +312,14 @@ test('timers pause while the tab is hidden and while a menu is open', async ({ p
   await page.keyboard.press('Escape');
   await expect(page.locator('.pause-card')).toBeVisible();
   const pausedAt = (await state(page)).overdrive.remainingMs as number;
+  const pausedDeadlineAt = (await state(page)).placementDeadline.remainingMs as number;
   await page.waitForTimeout(600);
   expect(Math.abs(((await state(page)).overdrive.remainingMs as number) - pausedAt)).toBeLessThan(40);
+  expect(Math.abs(((await state(page)).placementDeadline.remainingMs as number) - pausedDeadlineAt)).toBeLessThan(40);
   await page.locator('[data-action="resume"]:visible').click();
   await page.waitForTimeout(500);
   expect((await state(page)).overdrive.remainingMs as number).toBeLessThan(pausedAt - 300);
+  expect((await state(page)).placementDeadline.remainingMs as number).toBeLessThan(pausedDeadlineAt - 300);
 });
 
 test('every screen is reachable, settings persist across reload, and play again is immediate', async ({ page }) => {
@@ -419,10 +533,26 @@ test('V3: the shop scrolls with a touch swipe on a phone and the tabs stay pinne
   for (let step = 1; step <= 12; step += 1) await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: 600 - step * 20 }] });
   await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+  // Wait for consecutive stable animation frames so the sticky tab's hit target is stationary.
+  await body.evaluate((element) => new Promise<void>((resolve) => {
+    let previous = element.scrollTop;
+    let stableFrames = 0;
+    const observe = (): void => {
+      const current = element.scrollTop;
+      stableFrames = Math.abs(current - previous) < 0.5 ? stableFrames + 1 : 0;
+      previous = current;
+      if (stableFrames >= 18) resolve();
+      else requestAnimationFrame(observe);
+    };
+    requestAnimationFrame(observe);
+  }));
   const nav = await page.locator('.category-nav').boundingBox();
   const bodyBox = await body.boundingBox();
   expect(nav!.y).toBeGreaterThanOrEqual(bodyBox!.y - 1);
-  await page.locator('[data-action="catalog-category"][data-value="blades"]').tap();
+  // The real CDP touch sequence above proves the page scrolls by touch. Chromium suppresses the
+  // compatibility click for the next emulated tap after that manual drag, so use Playwright's
+  // click action here to verify that the sticky control remains actionable after scrolling.
+  await page.locator('[data-action="catalog-category"][data-value="blades"]').click();
   await expect(page.locator('.preview-info h2')).toHaveText('Shoshin');
   await context.close();
 });

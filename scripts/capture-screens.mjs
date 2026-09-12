@@ -75,6 +75,9 @@ for (const [width, height] of viewports) {
   await page.waitForTimeout(350);
   await page.evaluate(populate);
   await shot('gameplay-normal');
+  await page.evaluate(() => window.__MIRRORBLADE_TEST__.setPlacementDeadline(5_000));
+  await shot('gameplay-deadline');
+  await page.evaluate(() => window.__MIRRORBLADE_TEST__.setPlacementDeadline(30_000));
   await page.evaluate(contractState);
   await shot('gameplay-contract');
   await page.evaluate(() => { const g = window.__MIRRORBLADE_TEST__.game; g['contracts']['active'] = null; g['view'].setContract(null, 'lapsed'); g['view'].board.setPrecision(null); for (let i = 0; i < 8; i++) g['director'].observe({ score: g['score'].current(), lineCount: 0, occupancy: 0.5, legalOptions: 20 }); g['presentStress'](g['director'].state()); });
@@ -94,7 +97,7 @@ for (const [width, height] of viewports) {
   await shot('pause');
   await click('[data-action="resume"]');
   await page.waitForTimeout(200);
-  await page.evaluate(() => { const t = window.__MIRRORBLADE_TEST__; t.game['score']['score'] = 13410; t.game['refreshHUD'](); t.endRun(); });
+  await page.evaluate(() => { const t = window.__MIRRORBLADE_TEST__; t.setScore(13410); t.endRun(); });
   // shot() itself waits 420 ms, so the first frame lands on the strike (~420–490 ms) and the second mid-fall.
   await shot('gameover-cinematic-slash');
   await page.waitForTimeout(150);

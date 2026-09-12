@@ -92,3 +92,8 @@ body.state-stress .cell.is-axis::before { filter: saturate(0.7) brightness(calc(
 body.state-stress-high #app { background: radial-gradient(120% 70% at 50% -10%, rgba(143, 180, 212, 0.035), transparent 60%), linear-gradient(180deg, #181b21 0%, #121519 100%); transition: background var(--t-major) var(--ease-in-out); }
 body.state-stress-high .board-rim { opacity: 0.55; --rim-color: rgba(160, 196, 226, 0.35); animation: rim-orbit 5s linear infinite reverse; }
 body.state-stress-high .tray-slot { box-shadow: inset 0 1px 0 rgba(0,0,0,.4), inset 0 0 0 1px rgba(143,180,212,.12); }
+
+/* Progressive placement deadline — final five seconds. Coral stays distinct from amber Overdrive and blue Fracture. */
+body.state-deadline-final:not(.state-fracture):not(.state-fracture-warning) .board { box-shadow: inset 0 1px 0 rgba(255, 225, 222, 0.08), inset 0 0 0 1px rgba(234, 125, 120, 0.16), 0 22px 50px rgba(0, 0, 0, 0.55), 0 0 44px rgba(234, 125, 120, 0.13); }
+body.state-deadline-final:not(.state-fracture):not(.state-fracture-warning) .board-rim { opacity: 1; --rim-color: rgba(234, 125, 120, 0.88); animation: rim-orbit 1s linear infinite; }
+body.reduced-motion.state-deadline-final .board-rim { box-shadow: 0 0 0 2px rgba(234, 125, 120, 0.82); }

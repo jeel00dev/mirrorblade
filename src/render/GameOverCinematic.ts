@@ -33,7 +33,7 @@ export interface CinematicTimeline {
 }
 
 export interface CinematicOptions {
-  reason: 'stuck' | 'fracture';
+  reason: 'stuck' | 'fracture' | 'timeout';
   isNewBest: boolean;
   direction: SlashDirection;
   reducedMotion: boolean;

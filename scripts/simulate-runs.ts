@@ -27,6 +27,7 @@ import { classifyClear } from '../src/game/SkillEvents';
 import { Tray } from '../src/game/Tray';
 import { BOARD_SIZE, STARTING_BLADE_CHARGES } from '../src/config/gameplay';
 import { DIFFICULTY } from '../src/config/difficulty';
+import { clearShardReward } from '../src/config/economy';
 
 interface Policy {
   name: string;
@@ -41,6 +42,7 @@ interface Policy {
 
 interface RunResult {
   score: number;
+  shards: number;
   moves: number;
   lines: number;
   tiers: Record<string, number>;
@@ -212,7 +214,7 @@ function playRun(seed: number, policy: Policy): RunResult {
   let rack: BladeRack = createRack(STARTING_BLADE_CHARGES);
   let now = 0;
   let stall = 0;
-  const result: RunResult = { score: 0, moves: 0, lines: 0, tiers: { clear: 0, double: 0, triple: 0, max: 0 }, bladesForged: 0, bladesUsed: 0, forcedCuts: 0, movesAtMaxBlades: 0, overdrives: 0, overdriveMoves: 0, fractureArms: 0, fractureEscapes: 0, perfectMirrors: 0, perfectClears: 0, highestChain: 0, rotationsUsed: 0, contractsOffered: 0, contractsCompleted: 0, precisionSpawned: 0, precisionHit: 0, maxStage: 1, bands: [] };
+  const result: RunResult = { score: 0, shards: 0, moves: 0, lines: 0, tiers: { clear: 0, double: 0, triple: 0, max: 0 }, bladesForged: 0, bladesUsed: 0, forcedCuts: 0, movesAtMaxBlades: 0, overdrives: 0, overdriveMoves: 0, fractureArms: 0, fractureEscapes: 0, perfectMirrors: 0, perfectClears: 0, highestChain: 0, rotationsUsed: 0, contractsOffered: 0, contractsCompleted: 0, precisionSpawned: 0, precisionHit: 0, maxStage: 1, bands: [] };
   tray.replaceAll(generator.nextBatch(board, levelNow()));
 
   for (let guard = 0; guard < MAX_MOVES; guard += 1) {
@@ -251,14 +253,15 @@ function playRun(seed: number, policy: Policy): RunResult {
     const multiplier = overdrive.multiplier();
     if (multiplier > 1) result.overdriveMoves += 1;
     score.addMove(placedCells.length, event, { multiplier, clutch: escape.clutch });
+    result.shards += clearShardReward(detected.lineCount).total;
     const energy = applyEnergy(rack, energyForEvent(event, escape.clutch));
     rack = energy.rack;
     if (energy.gain.bladesForged > 0) result.bladesForged += 1;
     if (overdrive.onMove(event, now)) result.overdrives += 1;
     const precisionOutcome = precision.onMove(detected.cells);
-    if (precisionOutcome === 'hit') { score['score'] += 150; rack = applyEnergy(rack, 12).rack; result.precisionHit += 1; }
+    if (precisionOutcome === 'hit') { score.addBonus(150, multiplier); rack = applyEnergy(rack, 12).rack; result.precisionHit += 1; }
     const contractOutcome = contracts.onMove({ lineCount: detected.lineCount, rotated: candidate.rotated, fragment: candidate.piece.cutGeneration === 1 });
-    if (contractOutcome.outcome === 'completed' && contractOutcome.contract) { score['score'] += contractOutcome.contract.reward.score; rack = applyEnergy(rack, contractOutcome.contract.reward.energy).rack; result.contractsCompleted += 1; }
+    if (contractOutcome.outcome === 'completed' && contractOutcome.contract) { score.addBonus(contractOutcome.contract.reward.score, multiplier); rack = applyEnergy(rack, contractOutcome.contract.reward.energy).rack; result.contractsCompleted += 1; }
     if (detected.lineCount > 0) resolver.resolve();
     const directorState = director.observe({ score: score.current(), lineCount: detected.lineCount, occupancy: occupancyRatio(board), legalOptions: analysis.legalOptions });
     result.maxStage = Math.max(result.maxStage, directorState.stage);
@@ -295,19 +298,6 @@ function mean(values: number[]): number {
 }
 const fmt = (value: number, digits = 1): string => value.toFixed(digits);
 
-const DECISIONS = [
-  '1. **The Difficulty Director is what ends expert runs.** With the director frozen at level 0 the greedy policy reaches a median 91,905 and 10 of 150 runs never end inside 1,500 placements; with the live curve every run ends (median 25,760, p90 42,330, max 70,115). Each band is measurably harder than the last: legal placements 104 → 67, mean piece rating 2.25 → 3.25, moves per forged blade 15 → 38, recharge cost 100 → 220.',
-  '2. **There is a ceiling and it is survivable.** Level caps at 1.0 from 30,000; the best greedy run still reached 70k inside the max band, so continued survival depends on decisions, not on an ever-steeper ramp.',
-  '3. **Blade recharge scaling halves late forges.** Greedy forges 4.4 blades per run (V2: 8.1) and reaches the 220 cap by the fifth forge; time at the 5-blade cap fell to 6.6 %. Early game is unchanged (first blade still costs 100).',
-  '4. **Piece distribution keeps relief.** Easy pieces (rating ≤ 2) are ~70 % of the draw at level 0 and ~20 % at level 1 — never zero — so late trays still alternate hard / hard / relief.',
-  '5. **Mirror Contracts** are offered every ~14 moves after 2,500 (3–6 per run) and completed 56–57 % of the time by policies that do not plan for them; humans who chase them should do better. One chip, no punishment.',
-  '6. **Precision Cells** spawn 2–7 times per run and are hit 52–62 % of the time incidentally; the bonus (+150 / +12 energy) is sized so aiming for them is worth a slightly worse placement, not a reckless one.',
-  '7. **Overdrive** ignites ~1.2× per casual run and ~3× per expert run; **Fracture** arms ~1.1× per run and is escaped 78–91 % of the time — both unchanged in intent from V2.',
-  '8. **Session shape:** casual ≈ 65 placements ≈ 4 minutes, median ~10k (V2: 73 / 11k); expert ≈ 128 placements, median ~26k. If human tests find the 0–2.5k band harsh, soften `DIFFICULTY.pieceWeights` row 3 at level 0 before touching the curve.',
-  '9. **Perfect Mirror** (axis-column clear) still never occurred in 900 simulated runs; it stays a rare showpiece with its own achievement.',
-  '10. **Clutch** remains unsimulated (sub-second timing).',
-].join('\n');
-
 const RUNS = Number(process.argv[2] ?? 300);
 const lines: string[] = [];
 lines.push('# Balance report (V3)');
@@ -316,27 +306,31 @@ lines.push(`Generated ${new Date().toISOString()} by \`scripts/simulate-runs.ts\
 lines.push('');
 lines.push('Config under test: ' + JSON.stringify({ BLADE_ENERGY: BLADE_ENERGY.gains, maxBlades: BLADE_ENERGY.maxBlades, OVERDRIVE, FRACTURE }));
 lines.push('');
-lines.push('| Policy | Median score | Mean moves | Lines/100 moves | Doubles+ /run | Blades forged /run | Blades used /run | Forced cuts /run | % moves at 5 blades | Overdrives /run | % moves at 2× | Fracture arms /run | Fracture escapes | Rotations used /run | Perfect mirrors | Perfect clears | Max chain (mean) |');
-lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+lines.push('| Policy | Median score | Mean shards | Mean moves | Lines/100 moves | Doubles+ /run | Blades forged /run | Blades used /run | Forced cuts /run | % moves at 5 blades | Overdrives /run | % moves at 2× | Fracture arms /run | Fracture escapes | Rotations used /run | Perfect mirrors | Perfect clears | Max chain (mean) |');
+lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
 const summaries: Record<string, RunResult[]> = {};
 for (const policy of POLICIES) {
   const results: RunResult[] = [];
   for (let run = 0; run < RUNS; run += 1) results.push(playRun(1000 + run * 7919, policy));
   summaries[policy.name] = results;
   const moves = results.map((r) => r.moves);
-  lines.push(`| ${policy.name} | ${median(results.map((r) => r.score)).toLocaleString()} | ${fmt(mean(moves))} | ${fmt(mean(results.map((r) => r.lines / Math.max(1, r.moves) * 100)))} | ${fmt(mean(results.map((r) => r.tiers.double! + r.tiers.triple! + r.tiers.max!)))} | ${fmt(mean(results.map((r) => r.bladesForged)))} | ${fmt(mean(results.map((r) => r.bladesUsed)))} | ${fmt(mean(results.map((r) => r.forcedCuts)))} | ${fmt(mean(results.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}% | ${fmt(mean(results.map((r) => r.overdrives)), 2)} | ${fmt(mean(results.map((r) => r.overdriveMoves / Math.max(1, r.moves) * 100)))}% | ${fmt(mean(results.map((r) => r.fractureArms)), 2)} | ${fmt(mean(results.map((r) => r.fractureEscapes)), 2)} | ${fmt(mean(results.map((r) => r.rotationsUsed)))} | ${fmt(mean(results.map((r) => r.perfectMirrors)), 2)} | ${fmt(mean(results.map((r) => r.perfectClears)), 2)} | ${fmt(mean(results.map((r) => r.highestChain)))} |`);
+  lines.push(`| ${policy.name} | ${median(results.map((r) => r.score)).toLocaleString()} | ${fmt(mean(results.map((r) => r.shards)))} | ${fmt(mean(moves))} | ${fmt(mean(results.map((r) => r.lines / Math.max(1, r.moves) * 100)))} | ${fmt(mean(results.map((r) => r.tiers.double! + r.tiers.triple! + r.tiers.max!)))} | ${fmt(mean(results.map((r) => r.bladesForged)))} | ${fmt(mean(results.map((r) => r.bladesUsed)))} | ${fmt(mean(results.map((r) => r.forcedCuts)))} | ${fmt(mean(results.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}% | ${fmt(mean(results.map((r) => r.overdrives)), 2)} | ${fmt(mean(results.map((r) => r.overdriveMoves / Math.max(1, r.moves) * 100)))}% | ${fmt(mean(results.map((r) => r.fractureArms)), 2)} | ${fmt(mean(results.map((r) => r.fractureEscapes)), 2)} | ${fmt(mean(results.map((r) => r.rotationsUsed)))} | ${fmt(mean(results.map((r) => r.perfectMirrors)), 2)} | ${fmt(mean(results.map((r) => r.perfectClears)), 2)} | ${fmt(mean(results.map((r) => r.highestChain)))} |`);
 }
 lines.push('');
 const greedy = summaries[POLICIES[0]!.name]!;
-const noRotation = summaries[POLICIES[2]!.name]!;
-const noBlades = summaries[POLICIES[3]!.name]!;
+const casual = summaries[POLICIES[1]!.name]!;
+const frozen = summaries[POLICIES[2]!.name]!;
+const noRotation = summaries[POLICIES[3]!.name]!;
+const noBlades = summaries[POLICIES[4]!.name]!;
+const random = summaries[POLICIES[5]!.name]!;
 lines.push('## Readings');
 lines.push('');
 lines.push(`- **Rotation vs blades:** greedy with rotation and blades reaches a median ${median(greedy.map((r) => r.score)).toLocaleString()}; without rotation ${median(noRotation.map((r) => r.score)).toLocaleString()}; without blades ${median(noBlades.map((r) => r.score)).toLocaleString()}. Blades still matter after rotation if the with-blades score and run length exceed the no-blades run: ${fmt(mean(greedy.map((r) => r.moves)))} vs ${fmt(mean(noBlades.map((r) => r.moves)))} moves.`);
 lines.push(`- **Forced cuts** (no placement possible without a cut) per greedy run: ${fmt(mean(greedy.map((r) => r.forcedCuts)), 2)} — each one is a run the blade extended.`);
-lines.push(`- **Hoarding:** greedy spends ${fmt(mean(greedy.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}% of moves at the 5-blade cap; casual ${fmt(mean(summaries[POLICIES[1]!.name]!.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}%.`);
-lines.push(`- **Overdrive** ignites ${fmt(mean(greedy.map((r) => r.overdrives)), 2)}× per greedy run (${fmt(mean(greedy.map((r) => r.overdriveMoves / Math.max(1, r.moves) * 100)))}% of moves at 2×) and ${fmt(mean(summaries[POLICIES[1]!.name]!.map((r) => r.overdrives)), 2)}× per casual run.`);
-lines.push(`- **Fracture** arms ${fmt(mean(greedy.map((r) => r.fractureArms)), 2)}× per greedy run and ${fmt(mean(summaries[POLICIES[1]!.name]!.map((r) => r.fractureArms)), 2)}× per casual run; escapes ${fmt(mean(summaries[POLICIES[1]!.name]!.map((r) => r.fractureEscapes)), 2)}× per casual run.`);
+lines.push(`- **Line-earned shards:** greedy earns ${fmt(mean(greedy.map((r) => r.shards)))} per run, casual ${fmt(mean(casual.map((r) => r.shards)))}, random ${fmt(mean(random.map((r) => r.shards)))}. These exclude separately labelled achievements, contracts and Daily rewards.`);
+lines.push(`- **Hoarding:** greedy spends ${fmt(mean(greedy.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}% of moves at the 5-blade cap; casual ${fmt(mean(casual.map((r) => r.movesAtMaxBlades / Math.max(1, r.moves) * 100)))}%.`);
+lines.push(`- **Overdrive** ignites ${fmt(mean(greedy.map((r) => r.overdrives)), 2)}× per greedy run (${fmt(mean(greedy.map((r) => r.overdriveMoves / Math.max(1, r.moves) * 100)))}% of moves at 2×) and ${fmt(mean(casual.map((r) => r.overdrives)), 2)}× per casual run.`);
+lines.push(`- **Fracture** arms ${fmt(mean(greedy.map((r) => r.fractureArms)), 2)}× per greedy run and ${fmt(mean(casual.map((r) => r.fractureArms)), 2)}× per casual run; escapes ${fmt(mean(casual.map((r) => r.fractureEscapes)), 2)}× per casual run.`);
 lines.push('');
 lines.push('## Difficulty progression by score band (greedy and casual policies)');
 lines.push('');
@@ -366,9 +360,19 @@ for (const policy of POLICIES) {
 lines.push('');
 lines.push('Curve under test: ' + JSON.stringify(DIFFICULTY.curve) + '; recharge ' + JSON.stringify(BLADE_ENERGY.recharge));
 lines.push('');
-lines.push('## Decisions (2026-09-12, V3)');
+lines.push('## Decisions (2026-09-12 scoring revision)');
 lines.push('');
-lines.push(DECISIONS);
+const greedyScores = greedy.map((result) => result.score);
+const sortedGreedyScores = [...greedyScores].sort((a, b) => a - b);
+const greedyP90 = sortedGreedyScores[Math.min(sortedGreedyScores.length - 1, Math.floor(sortedGreedyScores.length * 0.9))] ?? 0;
+const greedyMax = sortedGreedyScores[sortedGreedyScores.length - 1] ?? 0;
+lines.push([
+  `1. **The formula rewards planned simultaneous clears.** The score rule is deterministic: 10 per unique placed cell, 100 per line, 100 per simultaneous line pair, fixed chain/skill bonuses, then the active score multiplier. Normal shards are line count squared.`,
+  `2. **The Difficulty Director still ends expert runs.** The live greedy policy has median ${median(greedyScores).toLocaleString()}, p90 ${greedyP90.toLocaleString()} and max ${greedyMax.toLocaleString()}, with ${greedy.filter((result) => result.moves >= MAX_MOVES).length} runs reaching the ${MAX_MOVES}-move cap. Freezing the director reaches median ${median(frozen.map((result) => result.score)).toLocaleString()} and ${frozen.filter((result) => result.moves >= MAX_MOVES).length} capped runs.`,
+  `3. **Session length remains stable.** Greedy averages ${fmt(mean(greedy.map((result) => result.moves)))} placements and casual averages ${fmt(mean(casual.map((result) => result.moves)))}; the scoring change moves score milestones without materially extending run length.`,
+  `4. **Currency now follows clear performance directly.** Mean normal-play payout is ${fmt(mean(greedy.map((result) => result.shards)))} shards for greedy, ${fmt(mean(casual.map((result) => result.shards)))} for casual and ${fmt(mean(random.map((result) => result.shards)))} for random play. Human economy testing should verify time-to-purchase against the 170–360 shard katana prices.`,
+  `5. **Limits:** the policies estimate strategy and progression but do not model Clutch timing, player comprehension, aesthetic satisfaction, or real-session purchase behavior.`,
+].join('\n'));
 lines.push('');
 writeFileSync('docs/balance-report-v3.md', lines.join('\n'));
 console.log(lines.join('\n'));

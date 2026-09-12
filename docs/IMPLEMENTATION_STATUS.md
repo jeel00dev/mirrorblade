@@ -88,6 +88,29 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` implemented · `[!]` ext
 - [x] Larger previews, fittings inspection, matching thumbnails and equipped identity across screens.
 - [T] State/persistence tests and required checks passed: 85 unit tests, 25 browser tests; collection and 112 wider regression captures completed across seven desktop/phone/landscape/tablet viewports. See `qa/katana-collection/README.md`.
 
+## Deterministic scoring and line-earned shards — 2026-09-12, `fix/score`
+
+- [x] Read the docs, contribution rules and recent history; completed sourced research in `research-2026-09-12-deterministic-scoring-and-shards.md` before implementation.
+- [x] Polygon placement score is `10 × unique mirrored cells`; cells overlapping on the mirror axis count once.
+- [x] Clear score is formula-based for any number of rows plus columns: `100L + 100 × L(L − 1) / 2`.
+- [x] Existing chain, Perfect Mirror, Perfect Clear and Clutch rewards remain fixed additions; Refraction Overdrive multiplies the complete move result.
+- [x] Precision and contract score use `ScoreSystem.addBonus`; debug setup uses `ScoreSystem.set`, removing private score-field writes.
+- [x] Normal shards are accumulated from each clear as `L × L`: Single 1, Double 4, Triple 9, four-line Max 16. Achievement, contract and Daily rewards remain separate.
+- [x] Normal clear shards are committed to the save at game over and shown in results; Double+ feedback includes the earned shard amount.
+- [x] Guide and README explain the score and shard rules without changing OBSIDIAN MIRROR tokens or components.
+- [T] Pure formula coverage and a prepared-board browser scenario assert an exact 350-point Double and four-shard payout.
+- [T] `npm run simulate` regenerated `balance-report-v3.md`: mean normal shards 219.9 greedy / 99.9 casual / 16.8 random; gameplay length remains stable. Human time-to-purchase testing against 170–360 shard katana prices remains required.
+- [T] Browser coverage also proves a no-clear mirrored placement scores its cells but banks and commits exactly zero normal shards.
+
+## Progressive placement deadline — 2026-09-12, `fix/score`
+
+- [x] Completed sourced timing, accessibility, difficulty and architecture research in `research-2026-09-12-progressive-placement-deadline.md` before implementation.
+- [T] Added a deterministic 30→10 second score-scaled placement deadline on the gated active-run clock.
+- [T] Reset occurs only after a valid board placement; cuts keep the current deadline, and guided onboarding and Fracture suppress normal timing.
+- [T] Added the responsive OBSIDIAN MIRROR final-five countdown and coral moving board rim, with WAI-ARIA timer semantics and a static reduced-motion treatment.
+- [T] Expiry routes through the existing katana game-over cinematic and results identify `Time ran out`.
+- [T] Validation: 113 unit tests, 42 full browser tests plus focused post-edge-case coverage, 16 automated responsive layouts, and nine deadline captures (seven standard plus two reduced-motion) with no console errors. The full score simulation remains the prior 150 seeded runs per policy because human think time is not modeled there.
+
 ## V3 — UI refinement
 
 - [T] Stronger global UI depth/shadows — `--shadow-rest/hover/pressed`, `--inner-highlight`, `--inner-edge`, `--panel-shadow`, `--shadow-inset` applied to buttons, icon buttons, nav items, tabs, cards, toggles, sliders, chips, pills, panels; compared against `reference/v3-1` in `qa/v3/ui-comparison.png`

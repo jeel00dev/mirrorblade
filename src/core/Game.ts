@@ -1,7 +1,7 @@
 import { AudioManager } from '../audio/AudioManager';
 import { BLADE_ENERGY } from '../config/blade';
 import { ACCESSIBLE_BLOCK_COLORS, COSMETICS, cosmeticById, type CosmeticCategory } from '../config/cosmetics';
-import { calculateRunShards, ECONOMY } from '../config/economy';
+import { clearShardReward, ECONOMY } from '../config/economy';
 import { DRAG_MOUSE_OFFSET, DRAG_TOUCH_OFFSET, QUALITY_PROFILES, STARTING_BLADE_CHARGES, type Quality, type QualityProfile } from '../config/gameplay';
 import { MOTION } from '../config/motion';
 import { applyEnergy, chargeTier, createRack, energyForEvent, energyProgress, rechargeCost, spendBlade, type BladeRack } from '../game/BladeEnergy';
@@ -22,6 +22,7 @@ import { createPiece, pieceDimensions, type GridCell, type Piece } from '../game
 import { getPieceDefinition } from '../game/PieceLibrary';
 import { occupancyRatio, PieceGenerator } from '../game/PieceGenerator';
 import { PlacementSystem, type PlacementPreview } from '../game/PlacementSystem';
+import { PlacementDeadline, type PlacementDeadlineSnapshot } from '../game/PlacementDeadline';
 import { RunClock } from '../game/RunClock';
 import { ScoreSystem } from '../game/ScoreSystem';
 import { SeededRandom } from '../game/SeededRandom';
@@ -66,6 +67,7 @@ interface RunStats {
   lines: number;
   rows: number;
   columns: number;
+  shards: number;
   placed: number;
   cut: number;
   bladesUsed: number;
@@ -94,6 +96,7 @@ export class Game {
   private readonly director = new DifficultyDirector();
   private readonly contracts = new Contracts();
   private readonly precision = new PrecisionCells();
+  private readonly placementDeadline = new PlacementDeadline();
   private readonly clock = new RunClock();
   private runRandom = new SeededRandom(1);
   private readonly achievements: AchievementSystem;
@@ -237,6 +240,7 @@ export class Game {
       screen: this.screens.current(),
       mode: this.mode,
       score: this.score.current(),
+      runShards: this.runStats.shards,
       blades: this.rack.blades,
       energy: this.rack.energy,
       energyProgress: energyProgress(this.rack),
@@ -250,6 +254,7 @@ export class Game {
       chain: this.combo.current(),
       overdrive: this.overdrive.snapshot(this.clock.now()),
       fracture: this.fracture.snapshot(this.clock.now()),
+      placementDeadline: this.placementDeadline.snapshot(this.clock.now()),
       clockRunning: this.clock.isRunning(),
       gates: this.clock.closedGateNames(),
       tray: this.tray.list().map((piece) => ({ ...piece, cells: [...piece.cells] })),
@@ -277,7 +282,7 @@ export class Game {
   }
 
   public debugSetScore(value: number): void {
-    this.score['score'] = Math.max(0, Math.floor(value));
+    this.score.set(value);
     this.director.observe({ score: this.score.current(), lineCount: 1, occupancy: occupancyRatio(this.board), legalOptions: 20 });
     this.refreshHUD();
   }
@@ -295,8 +300,14 @@ export class Game {
     this.view.board.setBoard(this.board.snapshot());
   }
 
-  public debugEndRun(reason: 'stuck' | 'fracture' = 'stuck'): void {
+  public debugEndRun(reason: 'stuck' | 'fracture' | 'timeout' = 'stuck'): void {
     if (this.activeRun) this.endRun(reason);
+  }
+
+  public debugSetPlacementDeadline(remainingMs: number): void {
+    if (!this.activeRun || this.fracture.currentPhase() !== 'idle' || this.tutorialStep !== 0) return;
+    this.placementDeadline.forceRemaining(this.clock.now(), remainingMs);
+    this.syncPlacementDeadline();
   }
 
   public debugForceOverdrive(): void {
@@ -338,6 +349,7 @@ export class Game {
     this.combo.reset();
     this.overdrive.reset();
     this.fracture.reset();
+    this.placementDeadline.reset();
     this.director.reset();
     this.contracts.reset();
     this.precision.reset();
@@ -356,6 +368,7 @@ export class Game {
     if (this.phase.current() !== 'PLAYING') this.phase.transition('PLAYING');
     if (mode === 'daily') this.beginDaily();
     this.clock.reset();
+    if (this.tutorialStep === 0) this.armPlacementDeadline();
     this.view.setDead(false);
     this.view.callouts.clear();
     this.view.effects.clear();
@@ -390,10 +403,11 @@ export class Game {
    * Game over. The model is locked and every consequence (stats, shards, save, daily) is committed immediately;
    * the katana cinematic then plays out and the results overlay follows its RESULTS_REVEAL event.
    */
-  private endRun(reason: 'stuck' | 'fracture'): void {
+  private endRun(reason: 'stuck' | 'fracture' | 'timeout'): void {
     if (this.finishedRun) return;
     this.finishedRun = true;
     this.activeRun = false;
+    this.clearPlacementDeadline();
     this.cancelDrag(false);
     this.clearResolveTimer();
     this.deferredNavigation = null;
@@ -405,7 +419,7 @@ export class Game {
     const finalScore = this.score.current();
     const oldBest = this.save.stats.bestScore;
     const isNewBest = finalScore > oldBest;
-    const shards = calculateRunShards({ score: finalScore, isNewBest, overdrives: this.runStats.overdrives, clutches: this.runStats.clutches });
+    const shards = this.runStats.shards;
     const stats = this.save.stats;
     this.save.currency += shards;
     stats.totalRuns += 1;
@@ -522,6 +536,8 @@ export class Game {
     const fractureEvent = this.fracture.update(now);
     if (fractureEvent === 'active') this.onFractureStart();
     else if (fractureEvent === 'timeout') { this.endRun('fracture'); return; }
+    if (this.fracture.currentPhase() !== 'idle' && this.placementDeadline.isActive()) this.clearPlacementDeadline();
+    if (this.fracture.currentPhase() === 'idle' && this.placementDeadline.update(now) === 'expired') { this.endRun('timeout'); return; }
     const od = this.overdrive.snapshot(now);
     const fr = this.fracture.snapshot(now);
     if (od.phase === 'final' && this.clock.isRunning()) {
@@ -534,6 +550,7 @@ export class Game {
     }
     document.body.classList.toggle('state-overdrive-final', od.phase === 'final');
     document.body.classList.toggle('state-fracture-final', fr.phase === 'active' && fr.remainingMs <= 3000);
+    this.syncPlacementDeadline(this.placementDeadline.snapshot(now));
     this.view.setStatus({
       chain: this.combo.current(),
       overdrive: od.phase === 'idle' ? null : { active: true, final: od.phase === 'final', remainingMs: od.remainingMs, progress: od.progress },
@@ -548,6 +565,7 @@ export class Game {
     document.body.classList.toggle('state-fracture-warning', this.activeRun && fr === 'warning');
     document.body.classList.toggle('state-fracture', this.activeRun && fr === 'active');
     if (!this.activeRun) document.body.classList.remove('state-overdrive-final', 'state-fracture-final', 'state-stress', 'state-stress-high');
+    this.syncPlacementDeadline();
     this.blade.setState({ overdrive: od.phase !== 'idle', fracture: fr === 'active' });
   }
 
@@ -581,6 +599,7 @@ export class Game {
   }
 
   private onFractureWarning(): void {
+    this.clearPlacementDeadline();
     this.runStats.stallMoves = 0;
     this.save.stats.fractures += 1;
     this.setBodyState();
@@ -791,6 +810,7 @@ export class Game {
   private commitPlacement(drag: DragSession): void {
     const now = this.clock.now();
     const cells = this.placement.commit(drag.piece, drag.anchor!);
+    this.clearPlacementDeadline();
     this.tray.consume(drag.piece.id);
     this.view.tray.markSource(drag.piece.id, false);
     drag.visual.settleAndRemove(60);
@@ -805,6 +825,8 @@ export class Game {
     const fractureResult = this.fracture.onAction('place', detected.lineCount > 0, now);
     const multiplier = this.overdrive.multiplier();
     const breakdown = this.score.addMove(cells.length, event, { multiplier, clutch: fractureResult.clutch });
+    const shardReward = clearShardReward(detected.lineCount);
+    this.runStats.shards += shardReward.total;
     const energyAmount = energyForEvent(event, fractureResult.clutch);
     const energyResult = applyEnergy(this.rack, energyAmount);
     this.rack = energyResult.rack;
@@ -819,7 +841,7 @@ export class Game {
       bonusEnergy += contractResult.contract.reward.energy;
       this.save.currency += contractResult.contract.reward.shards;
     }
-    if (bonusScore > 0) this.score['score'] += bonusScore * multiplier;
+    if (bonusScore > 0) this.score.addBonus(bonusScore, multiplier);
     if (bonusEnergy > 0) {
       const extra = applyEnergy(this.rack, bonusEnergy);
       if (extra.gain.bladesForged > 0 && energyResult.gain.bladesForged === 0) {
@@ -869,7 +891,7 @@ export class Game {
     this.audio.vibrate(8);
     const cellSize = this.view.board.cellSize();
     this.view.effects.placement(cells.map((cell) => { const c = this.view.board.cellCenter(cell); return this.view.effectsPoint(c.x, c.y); }), cellSize);
-    if (detected.lineCount > 0) this.presentClear(detected.rows, detected.columns, detected.cells, event, fractureResult.clutch, breakdown.multiplier);
+    if (detected.lineCount > 0) this.presentClear(detected.rows, detected.columns, detected.cells, event, fractureResult.clutch, breakdown.multiplier, shardReward.total);
     this.presentEnergy(energyResult.gain.amount + bonusEnergy, energyResult.gain.bladesForged > 0, energyResult.gain.energyBefore, this.rack.energy, detected.cells);
     if (precisionResult === 'hit') this.onPrecisionHit();
     else if (precisionResult === 'expired') this.view.board.setPrecision(null);
@@ -891,7 +913,7 @@ export class Game {
     this.queueSave();
   }
 
-  private presentClear(rows: readonly number[], columns: readonly number[], cells: readonly GridCell[], event: SkillEvent, clutch: boolean, multiplier: number): void {
+  private presentClear(rows: readonly number[], columns: readonly number[], cells: readonly GridCell[], event: SkillEvent, clutch: boolean, multiplier: number, shards: number): void {
     const cellSize = this.view.board.cellSize();
     const grid = this.view.board.gridRect();
     const origin = this.view.effectsPoint(grid.left, grid.top);
@@ -910,7 +932,9 @@ export class Game {
     const headline = headlineFor(event, clutch);
     if (headline) {
       const tier = clutch ? 'clutch' : event.perfectClear ? 'perfect' : event.tier === 'max' ? 'max' : event.perfectMirror ? 'perfect' : event.tier === 'triple' ? 'triple' : 'double';
-      const sub = multiplier > 1 ? `${multiplier}× score` : event.chain >= 2 ? `chain ×${event.chain}` : '';
+      const detail = multiplier > 1 ? `${multiplier}× score` : event.chain >= 2 ? `chain ×${event.chain}` : '';
+      const shardDetail = `+${shards} ${shards === 1 ? 'shard' : 'shards'}`;
+      const sub = detail ? `${detail} · ${shardDetail}` : shardDetail;
       window.setTimeout(() => this.view.callouts.show(headline, tier, sub), reduced ? 0 : premium ? 220 : 140);
     }
     this.view.board.pulse(event.perfectClear ? 'perfect' : event.tier === 'max' ? 'max' : event.tier === 'triple' ? 'triple' : event.tier === 'double' ? 'double' : 'place');
@@ -998,7 +1022,7 @@ export class Game {
       });
       if (this.phase.current() === 'CUTTING') this.phase.transition('PLAYING');
       if (this.tutorialStep === 4) this.advanceTutorial(5);
-      this.afterTransaction();
+      this.afterTransaction(false);
     }, this.save.settings.reducedMotion ? MOTION.reducedMotionMs : MOTION.cutResolveMs);
     this.queueSave();
   }
@@ -1012,11 +1036,11 @@ export class Game {
     }
     if (this.phase.current() === 'RESOLVING') this.phase.transition('PLAYING');
     if (this.tutorialStep === 2) window.setTimeout(() => { if (this.tutorialStep === 2) this.advanceTutorial(3); }, 1400);
-    this.afterTransaction();
+    this.afterTransaction(true);
   }
 
   /** Runs after any board transaction settles: game-over analysis, Fracture arming, deferred navigation. */
-  private afterTransaction(): void {
+  private afterTransaction(resetPlacementDeadline = false): void {
     if (!this.activeRun) return;
     const analysis = this.analyzer.analyze(this.tray.list(), this.rack.blades);
     if (analysis.gameOver) { this.endRun('stuck'); return; }
@@ -1037,11 +1061,28 @@ export class Game {
       const target = this.precision.tick(this.board, state.level, this.runRandom);
       if (target) { this.view.board.setPrecision(target.cells); this.audio.play('precision-spawn'); }
     }
+    if ((resetPlacementDeadline || !this.placementDeadline.isActive()) && this.tutorialStep === 0 && this.fracture.currentPhase() === 'idle') this.armPlacementDeadline();
     if (this.deferredNavigation) {
       const navigate = this.deferredNavigation;
       this.deferredNavigation = null;
       navigate();
     }
+  }
+
+  private armPlacementDeadline(): void {
+    this.placementDeadline.arm(this.clock.now(), this.director.state().base);
+    this.syncPlacementDeadline();
+  }
+
+  private clearPlacementDeadline(): void {
+    this.placementDeadline.clear();
+    this.syncPlacementDeadline();
+  }
+
+  private syncPlacementDeadline(snapshot: PlacementDeadlineSnapshot = this.placementDeadline.snapshot(this.clock.now())): void {
+    const visible = this.activeRun && this.fracture.currentPhase() === 'idle' && snapshot.warning;
+    document.body.classList.toggle('state-deadline-final', visible);
+    this.view.setPlacementDeadline(visible ? snapshot.seconds : null);
   }
 
   private clearResolveTimer(): void {
@@ -1081,6 +1122,7 @@ export class Game {
     this.tutorialStep = 0;
     this.view.hideHint();
     this.view.tray.clearHighlight();
+    if (this.activeRun && this.phase.is('PLAYING') && this.fracture.currentPhase() === 'idle') this.armPlacementDeadline();
     this.queueSave();
   }
 
@@ -1531,7 +1573,7 @@ export class Game {
   }
 
   private newRunStats(): RunStats {
-    return { lines: 0, rows: 0, columns: 0, placed: 0, cut: 0, bladesUsed: 0, bladesForged: 0, highestChain: 0, clutches: 0, overdrives: 0, stallMoves: 0, lastPlaySeconds: 0 };
+    return { lines: 0, rows: 0, columns: 0, shards: 0, placed: 0, cut: 0, bladesUsed: 0, bladesForged: 0, highestChain: 0, clutches: 0, overdrives: 0, stallMoves: 0, lastPlaySeconds: 0 };
   }
 
   // ------------------------------------------------------------------ DOM events

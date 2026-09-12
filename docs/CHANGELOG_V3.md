@@ -1,5 +1,25 @@
 # V3 change log
 
+## 2026-09-12 — Progressive placement deadline (`fix/score`)
+
+Every live run now gives the player 30 seconds to commit the first polygon. The full placement window follows the existing score-based Difficulty Director curve—30 / 25 / 20 / 15 / 10 seconds at levels 0 / .25 / .5 / .75 / 1—and never falls below ten seconds. A valid board placement hides the warning immediately and rearms the full current window after resolution. Rotation, cutting, and invalid drops do not reset it. Guided onboarding stays untimed, while Fracture supersedes the ordinary deadline so only one pressure system is shown.
+
+The final five seconds show `5, 4, 3, 2, 1` in a board-centered OBSIDIAN MIRROR timer panel. The existing board-rim geometry switches to a faster danger-coral orbit, distinct from amber Overdrive and blue Fracture, then disappears on placement. The panel uses board-relative `clamp()` sizing, pointer transparency, `role="timer"`, fixed integer updates, and a static coral reduced-motion treatment. Expiry calls the existing `endRun` path, so the equipped katana performs the established slash and polygon-fall cinematic before results say `Time ran out`.
+
+Research: `research-2026-09-12-progressive-placement-deadline.md`. Main files: `src/game/PlacementDeadline.ts`, `src/config/modes.ts`, `src/core/Game.ts`, `src/ui/GameplayView.ts`, `src/ui/screens/InfoScreens.ts`, `src/styles/{gameplay,states}.css`, `tests/modes.test.ts`, `e2e/{gameplay,responsive}.spec.ts`, and the QA scripts. The scoring regression now explicitly covers both sides of the shard rule: a prepared two-line clear banks four shards, while a no-clear placement banks and commits zero.
+
+Validation: `npm run check` passes 113 unit tests, lint, strict TypeScript and the production build. All 42 Playwright tests pass; focused cut/onboarding/deadline coverage also passes after the final edge handling. The timer is bounded at all 16 automated layouts. Seven standard and two reduced-motion deadline captures have no console errors; `qa/v3/deadline-responsive-comparison.png` was visually inspected at desktop, phone portrait, phone landscape and tablet sizes.
+
+## 2026-09-12 — Deterministic score and line-earned shards (`fix/score`)
+
+Score now follows one formula for every committed placement: 10 points per unique mirrored cell, 100 per completed row or column, and 100 for every pair of lines completed together. Existing chain and named skill rewards remain fixed additions, and Refraction Overdrive multiplies the complete move award. Precision Cells, contracts and debug setup now use public `ScoreSystem` methods rather than writing its private field.
+
+Normal Mirror Shards now come directly from each clear as `L²`: Single 1, Double 4, Triple 9 and four-line Max 16. They accumulate in run stats and commit to the save at game over; achievements, contracts and Daily rewards remain separately labelled sources. Double+ feedback shows the earned shards, while the Guide and README publish both formulas in the existing OBSIDIAN MIRROR theme.
+
+Research: `research-2026-09-12-deterministic-scoring-and-shards.md`. Main files: `src/config/{scoring,economy}.ts`, `src/game/ScoreSystem.ts`, `src/core/Game.ts`, `src/ui/screens/InfoScreens.ts`, `scripts/simulate-runs.ts`, `tests/scoring.test.ts`, `e2e/gameplay.spec.ts`. V3-008 records the corrected score/currency problem; the unrelated V3-009 test-driver fix keeps the existing real touch-swipe coverage reliable.
+
+Validation: `npm run check` passes with 109 unit tests; all 39 Playwright tests pass; `npm run simulate` regenerated `balance-report-v3.md`; seven-viewport captures completed with no console errors. The simulation reports mean normal clear payouts of 219.9 shards for greedy, 99.9 for casual and 16.8 for random policies. Human time-to-purchase testing against the 170–360 shard katana prices remains required before economy retuning.
+
 ## 2026-09-12 — Five-piece Japanese katana collection (`ui/shop`)
 
 The five shop recolors now have distinct original katana construction: Shoshin, Kage, Shiosai, Raimei and Akatsuki, ordered 01–05. Each has a different guard, hamon, material composition and ornament, with physical crossing silk wraps and generated steel/samé/silk texture detail. Existing saved IDs and shard prices are preserved.

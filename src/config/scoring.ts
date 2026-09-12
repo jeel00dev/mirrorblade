@@ -1,8 +1,8 @@
 export const SCORING = {
   perPlacedCell: 10,
   perLine: 100,
-  /** Indexed by number of lines cleared in one move. */
-  multiLineBonus: [0, 0, 60, 150, 280, 450, 650],
+  /** Every distinct pair of lines completed by one placement earns this bonus. */
+  simultaneousLinePairBonus: 100,
   chainStepBonus: 35,
   perfectMirrorBonus: 120,
   perfectClearBonus: 500,
