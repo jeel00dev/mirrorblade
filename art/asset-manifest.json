@@ -1,7 +1,7 @@
 {
   "$schema": "./asset-manifest.schema.json",
-  "generatedBy": "Claude Code, 2026-09-11 (V2) / 2026-09-12 (V3)",
-  "note": "No image-generation tool was available in this environment, so every asset is procedural (SVG / CSS / Three.js / Canvas) and constructed in code. If a studio render is added later, drop the white-background source in art/source-studio/ and the transparent export in public/assets/runtime/, then add an entry here. Nothing in public/assets/runtime is required at runtime today.",
+  "generatedBy": "Claude Code, 2026-09-11 (V2) / 2026-09-12 (V3); Codex, 2026-09-12 (katana collection)",
+  "note": "Every runtime asset is original and procedural (SVG / CSS / Three.js / Canvas). The katana collection uses shared live geometry for Home, gameplay and catalog previews; museum and game development references are documented in docs/research-2026-09-12-katana-collection.md. No external art was imported.",
   "assets": [
     {
       "id": "block-material",
@@ -45,8 +45,8 @@
         "shop",
         "collection"
       ],
-      "construction": "Procedural per docs/katana-research.md: 72-ring shinogi-zukuri blade (8 verts/ring: edge, wavy hamon boundary, shinogi, mune) with sori 0.085 and a chū-kissaki tip, vertex-colour hamon; habaki box, two seppa, extruded rounded-square tsuba with blade slot, fuchi/kashira elliptical caps, elliptical tsuka with a generated 128×512 ito-wrap texture, cyan menuki, edge hairline for flashes. MeshPhysicalMaterial steel metalness 1 / roughness 0.2 / clearcoat 0.4 under a PMREM RoomEnvironment. Poses: upright / dock (diagonal sway) / showcase.",
-      "dimensions": "≈ 5.3 × 0.4 × 0.4 scene units; ≈ 1,600 triangles; one 128×512 canvas texture",
+      "construction": "Five designs in src/config/katanas.ts: Shoshin, Kage, Shiosai, Raimei, Akatsuki. Each has a 128-ring / 12-vertex curved steel blade, distinct vertex-color hamon, tapered tip, curved edge highlight, habaki with divisions, paired seppa, original round/lobed/floral pierced guard and raised rim, fuchi/kashira, conforming crossed silk ribbons over textured samé, two-sided menuki and higher-tier inlays. Geometry batched into at most eight material meshes, shared across screen mounts. Seeded steel grain, silk weave and underlay textures; studio environment. Full and fittings inspection views.",
+      "dimensions": "≈ 5.2 scene units long; 10,612 / 11,508 / 12,180 / 12,176 / 14,740 triangles; 256×1024 steel, 128×128 silk, 128×512 samé textures",
       "format": "three.js"
     },
     {
@@ -156,15 +156,25 @@
     {
       "id": "katana-thumbnail",
       "source": "procedural",
-      "runtime": "src/ui/screens/ShopScreen.ts (katanaSilhouette)",
+      "runtime": "src/ui/katanaArtwork.ts",
       "purpose": "Shop and Collection item cards for blade skins",
       "screens": [
         "shop",
         "collection"
       ],
-      "construction": "64×64 inline SVG silhouette (blade, habaki, tsuba, wrapped tsuka with diamond strokes, menuki, kashira) filled from the skin colours",
-      "dimensions": "64×64",
+      "construction": "Original SVG overviews using the model's blade-section, hamon and guard-contour functions, with matching fittings, crossing wrap, menuki and finish gradients. Ordered 01–05 cards remain fully visible when unaffordable.",
+      "dimensions": "240×120 viewBox",
       "format": "inline svg"
+    },
+    {
+      "id": "katana-signature-motion",
+      "source": "procedural",
+      "runtime": "src/render/KatanaMotion.ts + src/render/KatanaFlourish.ts",
+      "purpose": "Individual Home and catalog signature animation with an explicit still hold",
+      "screens": ["home", "shop", "collection"],
+      "construction": "Silver glint, moon crescent, tide ribbons, storm branches or sun halo/rays; pooled line and point buffers plus a glint plane, at most three effect draw calls. Deterministic 2.2–3.4 s flourish followed by 3–3.3 s still hold. Replay and pause controls, static reduced-motion view, hidden-tab gating. Effects are not shown over gameplay.",
+      "dimensions": "blade-relative",
+      "format": "three.js"
     },
     {
       "id": "combo-typography",

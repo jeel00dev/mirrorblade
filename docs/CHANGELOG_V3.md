@@ -1,5 +1,17 @@
 # V3 change log
 
+## 2026-09-12 — Five-piece Japanese katana collection (`ui/shop`)
+
+The five shop recolors now have distinct original katana construction: Shoshin, Kage, Shiosai, Raimei and Akatsuki, ordered 01–05. Each has a different guard, hamon, material composition and ornament, with physical crossing silk wraps and generated steel/samé/silk texture detail. Existing saved IDs and shard prices are preserved.
+
+Home, catalog and gameplay carry the complete equipped design through the shared renderer. Home/catalog play individual signature flourishes followed by still holds; pause, replay, reduced motion and fittings close-up are supported. Browsing an unowned blade restores the equipped object on exit. The shop retains the obsidian UI, adds matching larger thumbnails and leaves unaffordable artwork fully visible. Catalog previews reset gameplay charge state (V3-005).
+
+Research was written before implementation in `research-2026-09-12-katana-collection.md`, using museum and first-party game-development sources. `AGENTS.md` records the owner's docs-first, research-first, theme-consistency and branch-base preferences.
+
+Main files: `src/config/{katanas,cosmetics}.ts`, `src/render/{KatanaModel,KatanaMotion,KatanaFlourish,BladeScene}.ts`, `src/ui/katanaArtwork.ts`, `src/ui/screens/{HomeScreen,ShopScreen}.ts`, `src/core/Game.ts`, `src/styles/katanas.css`, `src/main.ts`, `art/asset-manifest.json`. Tests: `tests/katanas.test.ts`, `e2e/katanas.spec.ts`; the old geometry-budget assertion now uses the researched 15k cap.
+
+Validation: 85 unit tests and 25 Playwright tests pass. Each model is below 15,000 triangles (10,612–14,740), batched into no more than eight material meshes. Repeated design changes retain stable geometry/texture resource counts. Five blades × Home/Shop/gameplay × seven viewports plus five fittings close-ups are captured in `qa/katana-collection`; named desktop/phone loop videos and effect captures are included there. Full regression captures and final check results are recorded in `qa/katana-collection/README.md`. Real-device frame rate and player purchase preference remain unmeasured.
+
 ## 2026-09-11 18:30 IST — V3 research and plan
 
 Files: `docs/v3-research.md`, `docs/katana-research.md`, `docs/third-party-assets.md`, `docs/reference/v3-*.png`, `docs/IMPLEMENTATION_STATUS.md` (V3 sections).

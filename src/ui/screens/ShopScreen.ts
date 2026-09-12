@@ -6,6 +6,7 @@ import type { BladeScene } from '../../render/BladeScene';
 import { button, screenHead, shardsPill } from '../components';
 import { icon } from '../Icons';
 import { element, type ScreenContext } from './context';
+import { katanaArtwork } from '../katanaArtwork';
 
 const CATEGORY_ICON: Record<CosmeticCategory, string> = { blocks: 'blocks', boards: 'board', blades: 'blade', trails: 'trail', effects: 'effect', sounds: 'music' };
 
@@ -30,12 +31,12 @@ export function buildCatalogScreen(ctx: ScreenContext, mode: 'shop' | 'collectio
     : '';
   const strip = items.length === 0
     ? `<div class="empty-state">${icon('collection')}<b>Nothing owned in this category yet.</b>${button('Browse the shop', 'shop', { variant: 'quiet', small: true })}</div>`
-    : `<div class="item-strip" role="listbox" aria-label="${mode === 'shop' ? 'Items for sale' : 'Owned items'}">${items.map((item) => itemCard(ctx, item, current?.id === item.id)).join('')}</div>`;
+    : `<div class="item-strip${category === 'blades' ? ' katana-strip' : ''}" role="listbox" aria-label="${mode === 'shop' ? 'Items for sale' : 'Owned items'}">${items.map((item) => itemCard(ctx, item, current?.id === item.id)).join('')}</div>`;
   return element(`
     <section aria-label="${mode === 'shop' ? 'Shop' : 'Collection'}">
       ${screenHead(mode === 'shop' ? 'Shop' : 'Collection', 'home', shardsPill(ctx.save.currency, 'catalog-shards'))}
       <div class="screen-body">
-        <div class="catalog">
+        <div class="catalog${category === 'blades' ? ' katana-catalog' : ''}">
           ${nav}${loadout}
           ${current ? previewCard(ctx, current, mode) : '<div></div>'}
           ${strip}
@@ -52,7 +53,8 @@ function itemCard(ctx: ScreenContext, item: CosmeticDefinition, selected: boolea
     : owned ? `<span class="item-state is-owned" title="Owned">${icon('owned')}</span>`
       : locked ? `<span class="item-state is-locked" title="Not enough shards yet">${icon('lock')}</span>` : '';
   const vars = item.colors.map((color, index) => `--c${index + 1}:${color}`).join(';');
-  return `<button type="button" class="item-card${locked ? ' is-locked' : ''}" role="option" aria-selected="${selected}" aria-pressed="${selected}" data-action="catalog-select" data-value="${item.id}" style="${vars}">
+  return `<button type="button" class="item-card${locked ? ' is-locked' : ''}${item.katana ? ' katana-item' : ''}" role="option" aria-selected="${selected}" aria-pressed="${selected}" data-action="catalog-select" data-value="${item.id}" style="${vars}">
+    ${item.katana ? `<span class="katana-tier"><b>0${item.katana.tier}</b>${item.katana.rank}</span>` : ''}
     <span class="swatch">${swatch(item)}</span>${state}
     <span class="item-name">${item.name}</span>
     <span class="item-price">${owned ? (equipped ? 'Equipped' : 'Owned') : `${item.cost} shards`}</span>
@@ -66,7 +68,7 @@ function swatch(item: CosmeticDefinition): string {
       return `<span class="swatch-blocks" style="--cell:18px;--block-cyan:${cyan};--block-coral:${coral};--block-amber:${amber};--block-violet:${violet}">${(['cyan', 'coral', 'amber', 'violet'] as const).map((tone) => `<span class="pc"><i class="blk tone-${tone}"></i></span>`).join('')}</span>`;
     }
     case 'boards': return `<span class="swatch-board">${'<i></i>'.repeat(9)}</span>`;
-    case 'blades': return katanaSilhouette(item.colors);
+    case 'blades': return item.katana ? katanaArtwork(item.katana) : katanaSilhouette(item.colors);
     case 'sounds': return '<span class="swatch-wave"><i></i><i></i><i></i><i></i></span>';
     case 'effects': return `<span class="swatch-effect swatch-effect-${item.effect ?? 'shatter'}"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><b></b></span>`;
     case 'trails': return `<span class="swatch-trail swatch-trail-${item.trail ?? 'glow'}"><b></b><i></i><i></i><i></i><i></i><i></i></span>`;
@@ -109,12 +111,19 @@ function previewCard(ctx: ScreenContext, item: CosmeticDefinition, mode: 'shop' 
     ? `<span class="price is-owned">${icon('owned')} Owned</span>`
     : `<span class="price">${icon('shard')}<span class="num">${item.cost.toLocaleString()}</span>${!canAfford ? `<small class="t-caption"> · need ${(item.cost - ctx.save.currency).toLocaleString()} more</small>` : ''}</span>`;
   const vars = item.colors.map((color, index) => `--c${index + 1}:${color}`).join(';');
+  const design = item.katana;
+  const bladeTools = design ? `<div class="katana-tools">
+    <button type="button" data-action="blade-detail" aria-pressed="false">${icon('katana')}<span>Inspect fittings</span></button>
+    <button type="button" data-action="blade-motion" aria-pressed="false" aria-label="Pause blade animation">${icon('pause')}<span>Pause</span></button>
+  </div>` : '';
   return `<div class="panel preview-card${ctx.shop.revealing === item.id ? ' is-revealing' : ''}" data-preview-category="${item.category}" data-preview-id="${item.id}" style="${vars}">
-    <div class="preview-stage" id="preview-stage">${staticPreview(item)}</div>
+    <div class="preview-stage" id="preview-stage">${design ? `<div class="katana-stage-label"><span>Katana collection</span><b>0${design.tier}<small> / 05</small></b></div><div class="katana-viewport"></div>${bladeTools}` : ''}${staticPreview(item)}</div>
     <div class="preview-info">
-      <span class="style-tag">${item.style} · ${COSMETIC_CATEGORIES.find((c) => c.id === item.category)?.short ?? ''}</span>
+      <span class="style-tag">${design ? `${design.rank} · Japanese katana` : `${item.style} · ${COSMETIC_CATEGORIES.find((c) => c.id === item.category)?.short ?? ''}`}</span>
       <h2>${item.name}</h2>
+      ${design ? `<span class="katana-epithet">${design.epithet}</span>` : ''}
       <p>${item.description}</p>
+      ${design ? `<ul class="katana-details">${design.details.map((detail) => `<li>${detail}</li>`).join('')}</ul><button type="button" class="katana-replay" data-action="blade-replay">${icon('play')}<span>${design.flourish}<small>Replay signature animation</small></span></button>` : ''}
       ${price}
       <div class="preview-actions">${actions}${preview}</div>
     </div>
@@ -171,8 +180,9 @@ export function mountCatalogPreview(root: HTMLElement, item: CosmeticDefinition,
     effects.configure({ budget: 90, effect: item.effect, effectColors: item.colors });
   }
   if (item.category === 'blades') {
-    bladeScene.setSkin({ colors: item.colors });
-    bladeScene.mount(stage, { hero: true, pose: 'showcase' });
+    bladeScene.setSkin(item);
+    bladeScene.setState({ charges: 3, energy: 0, hover: false, overdrive: false, fracture: false });
+    bladeScene.mount(stage.querySelector<HTMLElement>('.katana-viewport') ?? stage, { hero: true, pose: 'showcase' });
   }
   return {
     play: effects && board ? () => {

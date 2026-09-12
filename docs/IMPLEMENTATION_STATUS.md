@@ -80,6 +80,14 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` implemented · `[!]` ext
 
 # V3 — Difficulty, game feel, visual refinement (started 2026-09-11)
 
+## Katana collection — 2026-09-12, `ui/shop`
+
+- [x] Read docs/contribution guide and available commit history; new sourced research in `research-2026-09-12-katana-collection.md` before implementation.
+- [x] Five distinct detailed katana designs, ordered 01–05, preserving saved IDs, ownership and prices.
+- [x] Per-blade Home/showcase animation, still pauses, replay, pause control and reduced motion.
+- [x] Larger previews, fittings inspection, matching thumbnails and equipped identity across screens.
+- [T] State/persistence tests and required checks passed: 85 unit tests, 25 browser tests; collection and 112 wider regression captures completed across seven desktop/phone/landscape/tablet viewports. See `qa/katana-collection/README.md`.
+
 ## V3 — UI refinement
 
 - [T] Stronger global UI depth/shadows — `--shadow-rest/hover/pressed`, `--inner-highlight`, `--inner-edge`, `--panel-shadow`, `--shadow-inset` applied to buttons, icon buttons, nav items, tabs, cards, toggles, sliders, chips, pills, panels; compared against `reference/v3-1` in `qa/v3/ui-comparison.png`

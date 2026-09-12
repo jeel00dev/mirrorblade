@@ -2,6 +2,16 @@
 
 Newest entry first. Each session appends: who, when, what was done, what to pick up next.
 
+## 2026-09-12 — Codex: five katana collection on `ui/shop`
+
+Started with docs, contribution rules and the single available import commit (`33155d1`). New museum/game-development research is in `research-2026-09-12-katana-collection.md`. Standing owner preferences are in root `AGENTS.md`.
+
+Implemented Shoshin / Kage / Shiosai / Raimei / Akatsuki with distinct 3D details, matching thumbnail artwork and complete equipped identity on Home, Shop, Collection and gameplay. Existing saved IDs and prices remain unchanged. Home/catalog get signature animations with still holds, pause/replay and reduced motion; Shop also has a fittings close-up. Geometry is batched and disposed between design changes. No external art or audio added.
+
+85 unit tests and 25 browser tests pass. See `qa/katana-collection/README.md` for capture paths, measured geometry budgets and final QA. `npm run dev` is running on http://127.0.0.1:5173 for review. Changes are local and uncommitted. No commit, push or PR has been requested.
+
+Remaining human validation: visual preference/appeal across all five tiers and physical midrange-phone frame time. Do not claim purchase uplift or device performance from automated browser captures. All further art changes should follow the existing obsidian material language and begin with docs/research.
+
 ---
 
 ## 2026-09-11 16:10 IST — Claude Code takes over from Codex

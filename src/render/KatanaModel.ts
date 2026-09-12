@@ -1,260 +1,264 @@
 import * as THREE from 'three';
-
-/**
- * Procedural katana. Proportions follow docs/katana-research.md (1 unit ≈ 20 cm):
- * nagasa 3.6, sori 0.085 with forward bias, chū-kissaki 0.32, habaki, seppa, rounded-square tsuba,
- * fuchi, 1.3 tsuka with an ito wrap texture, kashira, one cyan menuki. Blade points +Y, edge faces −X.
- * ≈ 1.6k triangles, one 128×512 generated texture.
- */
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { guardRadiusAt, hamonAt, KATANA_DESIGNS, type KatanaDesign } from '../config/katanas';
 
 export interface KatanaMaterials {
   steel: THREE.MeshPhysicalMaterial;
   fittings: THREE.MeshStandardMaterial;
   habaki: THREE.MeshStandardMaterial;
   wrap: THREE.MeshStandardMaterial;
+  same: THREE.MeshStandardMaterial;
+  inlay: THREE.MeshStandardMaterial;
   accent: THREE.MeshStandardMaterial;
   edge: THREE.MeshBasicMaterial;
 }
+export interface KatanaSkin { readonly colors: readonly string[]; readonly katana?: KatanaDesign }
+export const KATANA = { nagasa: 3.6, kissaki: 0.36, tsuka: 1.22, centerOffset: -1.05 } as const;
 
-export interface KatanaSkin {
-  /** [steel, fittings, wrap, accent] */
-  readonly colors: readonly string[];
-}
-
-export const KATANA = {
-  nagasa: 3.6,
-  sori: 0.085,
-  widthBase: 0.16,
-  widthTip: 0.11,
-  thicknessBase: 0.036,
-  thicknessTip: 0.024,
-  shinogi: 0.62,
-  kissaki: 0.32,
-  habaki: 0.13,
-  tsubaSize: 0.4,
-  tsubaThickness: 0.05,
-  tsuka: 1.3,
-  /** Vertical offset so the whole sword is centred on the origin. */
-  centerOffset: -1.05,
-} as const;
-
-export function createKatanaMaterials(): KatanaMaterials {
+export function createKatanaMaterials(design = KATANA_DESIGNS[0]!): KatanaMaterials {
+  const grain = steelTexture();
+  const same = underlayTexture();
+  const silk = silkTexture();
   return {
-    steel: new THREE.MeshPhysicalMaterial({ color: 0xe6eaeb, metalness: 1, roughness: 0.2, clearcoat: 0.4, clearcoatRoughness: 0.2, envMapIntensity: 1.35, vertexColors: true }),
-    fittings: new THREE.MeshStandardMaterial({ color: 0x2b2f36, metalness: 0.85, roughness: 0.5 }),
-    habaki: new THREE.MeshStandardMaterial({ color: 0x8f7a55, metalness: 0.9, roughness: 0.45 }),
-    wrap: new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.05, roughness: 0.85, map: wrapTexture('#1e2024', '#6a6d72') }),
-    accent: new THREE.MeshStandardMaterial({ color: 0x43c2c7, emissive: 0x43c2c7, emissiveIntensity: 0.35, metalness: 0.3, roughness: 0.4 }),
-    edge: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
+    steel: new THREE.MeshPhysicalMaterial({ color: design.colors[0], metalness: 0.92, roughness: 0.25, clearcoat: 0.32, clearcoatRoughness: 0.25, envMapIntensity: 1.3, vertexColors: true, map: grain }),
+    fittings: new THREE.MeshStandardMaterial({ color: design.colors[1], metalness: 0.82, roughness: 0.33 }),
+    habaki: new THREE.MeshStandardMaterial({ color: design.inlay, metalness: 0.88, roughness: 0.26 }),
+    wrap: new THREE.MeshStandardMaterial({ color: design.colors[2], metalness: 0.05, roughness: 0.78, map: silk, bumpMap: silk, bumpScale: 0.003 }),
+    same: new THREE.MeshStandardMaterial({ color: design.underlay, metalness: 0.03, roughness: 0.9, map: same, bumpMap: same, bumpScale: 0.009 }),
+    inlay: new THREE.MeshStandardMaterial({ color: design.inlay, metalness: 0.82, roughness: 0.24 }),
+    accent: new THREE.MeshStandardMaterial({ color: design.colors[3], emissive: design.colors[3], emissiveIntensity: 0.18, metalness: 0.4, roughness: 0.26 }),
+    edge: new THREE.MeshBasicMaterial({ color: design.colors[3], transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
   };
 }
 
-export function applyKatanaSkin(materials: KatanaMaterials, skin: KatanaSkin): void {
-  const [steel = '#e6eaeb', fittings = '#2b2f36', wrap = '#1e2024', accent = '#43c2c7'] = skin.colors;
-  materials.steel.color.set(steel);
-  materials.fittings.color.set(fittings);
-  materials.habaki.color.copy(new THREE.Color(0x8f7a55).lerp(new THREE.Color(fittings), 0.3));
-  materials.wrap.map?.dispose();
-  materials.wrap.map = wrapTexture(wrap, mixHex(wrap, '#ffffff', 0.32));
-  materials.wrap.needsUpdate = true;
-  materials.accent.color.set(accent);
-  materials.accent.emissive.set(accent);
-  materials.edge.color.set(accent);
-  for (const material of [materials.steel, materials.fittings, materials.habaki, materials.accent]) material.needsUpdate = true;
-}
-
-export function buildKatana(materials: KatanaMaterials): { group: THREE.Group; triangles: number } {
+/** Original procedural craftsmanship, batched into one mesh per material. */
+export function buildKatana(materials: KatanaMaterials, design = KATANA_DESIGNS[0]!): { group: THREE.Group; triangles: number } {
   const group = new THREE.Group();
-  let triangles = 0;
-  const add = (mesh: THREE.Mesh): void => {
-    group.add(mesh);
-    const index = mesh.geometry.index;
-    triangles += index ? index.count / 3 : mesh.geometry.attributes.position!.count / 3;
+  group.name = design.id;
+  const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const add = (geometry: THREE.BufferGeometry, material: THREE.Material, position = new THREE.Vector3(), rotation = new THREE.Euler(), scale = new THREE.Vector3(1, 1, 1)): void => {
+    const flat = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    geometry.dispose();
+    flat.applyMatrix4(new THREE.Matrix4().compose(position, new THREE.Quaternion().setFromEuler(rotation), scale));
+    const count = flat.getAttribute('position').count;
+    if (!flat.getAttribute('color')) flat.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(count * 3).fill(1), 3));
+    if (!flat.getAttribute('uv')) flat.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(count * 2), 2));
+    flat.clearGroups();
+    const entries = batches.get(material) ?? [];
+    entries.push(flat);
+    batches.set(material, entries);
   };
-
-  add(new THREE.Mesh(bladeGeometry(), materials.steel));
-
-  // Cutting-line hairline along the ha (edge), used only for energy / forge flashes.
-  const edge = new THREE.Mesh(new THREE.BoxGeometry(0.008, KATANA.nagasa * 0.9, 0.02), materials.edge);
-  edge.position.set(-KATANA.widthBase * 0.46, KATANA.nagasa * 0.47, 0);
-  edge.name = 'edge';
-  add(edge);
-
-  const habaki = new THREE.Mesh(new THREE.BoxGeometry(KATANA.widthBase * 1.25, KATANA.habaki, KATANA.thicknessBase * 2.4), materials.habaki);
-  habaki.position.y = -KATANA.habaki / 2;
-  add(habaki);
-
-  for (const offset of [0, -KATANA.tsubaThickness - 0.012]) {
-    const seppa = new THREE.Mesh(new THREE.BoxGeometry(KATANA.widthBase * 1.7, 0.012, KATANA.thicknessBase * 3.2), materials.fittings);
-    seppa.position.y = -KATANA.habaki - 0.006 + offset;
-    add(seppa);
+  const cylinder = (r1: number, r2: number, length: number, y: number, material: THREE.Material): void => {
+    add(new THREE.CylinderGeometry(r1, r2, length, 24), material, new THREE.Vector3(0, y, 0), new THREE.Euler(), new THREE.Vector3(1, 1, 0.63));
+  };
+  const line = (points: THREE.Vector3[], radius: number, material: THREE.Material, closed = false): void => {
+    add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, closed), Math.max(8, points.length * 2), radius, 4, closed), material);
+  };
+  add(bladeGeometry(design), materials.steel);
+  for (const side of [-1, 1]) {
+    const edge: THREE.Vector3[] = [], ridge: THREE.Vector3[] = [];
+    for (let i = 0; i <= 48; i++) {
+      const t = i / 48, p = bladeSection(design, t);
+      edge.push(new THREE.Vector3(p.edge, t * KATANA.nagasa, side * 0.004));
+      ridge.push(new THREE.Vector3(p.edge + p.span * 0.66, t * KATANA.nagasa, side * p.half * 1.04));
+    }
+    line(edge, 0.004, materials.edge);
+    line(ridge, 0.0018, materials.steel);
   }
-
-  const tsuba = new THREE.Mesh(tsubaGeometry(), materials.fittings);
-  tsuba.rotation.x = Math.PI / 2;
-  tsuba.position.y = -KATANA.habaki - 0.012 - KATANA.tsubaThickness / 2;
-  add(tsuba);
-
-  const tsukaTop = -KATANA.habaki - 0.024 - KATANA.tsubaThickness;
-  const fuchi = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.078, 0.07, 24), materials.fittings);
-  fuchi.scale.z = 0.66;
-  fuchi.position.y = tsukaTop - 0.035;
-  add(fuchi);
-
-  const tsuka = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.07, KATANA.tsuka, 24, 1, false), materials.wrap);
-  tsuka.scale.z = 0.66;
-  tsuka.position.y = tsukaTop - 0.07 - KATANA.tsuka / 2;
-  add(tsuka);
-
-  const kashira = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.062, 0.07, 24), materials.fittings);
-  kashira.scale.z = 0.66;
-  kashira.position.y = tsukaTop - 0.07 - KATANA.tsuka - 0.035;
-  add(kashira);
-
-  const menuki = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.1, 0.012), materials.accent);
-  menuki.position.set(0, tsukaTop - 0.07 - KATANA.tsuka * 0.42, 0.052);
-  menuki.rotation.z = 0.25;
-  add(menuki);
-
+  add(new THREE.BoxGeometry(design.width * 1.04, 0.14, 0.085), materials.habaki, new THREE.Vector3(0, -0.07, 0));
+  for (const side of [-1, 1]) for (let i = -2; i <= 2; i++) {
+    add(new THREE.BoxGeometry(0.003, 0.10, 0.002), materials.fittings, new THREE.Vector3(i * 0.032, -0.07, side * 0.044));
+  }
+  cylinder(0.156, 0.156, 0.012, -0.145, materials.inlay);
+  cylinder(0.156, 0.156, 0.012, -0.215, materials.inlay);
+  add(tsubaGeometry(design), materials.fittings, new THREE.Vector3(0, -0.18, 0), new THREE.Euler(Math.PI / 2, 0, 0));
+  for (const face of [-0.217, -0.143]) {
+    const rim = Array.from({ length: 48 }, (_, i) => {
+      const a = i / 48 * Math.PI * 2, r = guardRadiusAt(design, a) * 0.94;
+      return new THREE.Vector3(Math.cos(a) * r, face, Math.sin(a) * r * 0.83);
+    });
+    line(rim, design.tier === 1 ? 0.003 : 0.007, materials.inlay, true);
+    if (design.tier >= 3) {
+      const petals = design.motif === 'sun' ? 16 : design.motif === 'storm' ? 5 : 6;
+      for (let p = 0; p < petals; p++) {
+        const a = p / petals * Math.PI * 2;
+        line(Array.from({ length: 5 }, (_, i) => {
+          const t = i / 4, r = 0.105 + t * design.guardRadius * 0.48, angle = a + Math.sin(t * Math.PI) * 0.18;
+          return new THREE.Vector3(Math.cos(angle) * r, face, Math.sin(angle) * r * 0.83);
+        }), 0.0045, materials.inlay);
+      }
+    }
+  }
+  const gripTop = -0.30, gripBottom = gripTop - KATANA.tsuka;
+  cylinder(0.113, 0.108, 0.085, -0.261, materials.fittings);
+  cylinder(0.105, 0.095, KATANA.tsuka, gripTop - KATANA.tsuka / 2, materials.same);
+  cylinder(0.10, 0.091, 0.085, gripBottom - 0.04, materials.fittings);
+  // Counter-wound silk ribbons conform to the elliptical grip, with no floating band ends.
+  for (let row = 0; row < 6; row++) for (const direction of [-1, 1]) {
+    add(wrapBandGeometry(gripTop - row * 0.20, direction, row), materials.wrap);
+  }
+  for (const y of [-0.23, -0.293, gripBottom - 0.015, gripBottom - 0.07]) cylinder(0.112, 0.112, design.tier > 3 ? 0.009 : 0.005, y, materials.inlay);
+  for (const face of [-1, 1]) {
+    const y = gripTop - 0.47, z = face * 0.087;
+    if (design.motif === 'moon') {
+      line(Array.from({ length: 12 }, (_, i) => {
+        const a = -Math.PI * 0.6 + i / 11 * Math.PI * 1.35;
+        return new THREE.Vector3(Math.cos(a) * 0.034, y + Math.sin(a) * 0.06, z);
+      }), 0.007, materials.inlay);
+    } else if (design.motif === 'sun') {
+      add(new THREE.SphereGeometry(0.028, 12, 6), materials.accent, new THREE.Vector3(0, y, z), new THREE.Euler(), new THREE.Vector3(1, 1, 0.35));
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        add(new THREE.BoxGeometry(0.009, 0.022, 0.004), materials.inlay, new THREE.Vector3(Math.sin(a) * 0.041, y + Math.cos(a) * 0.041, z), new THREE.Euler(0, 0, -a));
+      }
+    } else for (let i = 0; i < (design.tier > 2 ? 3 : 1); i++) {
+      add(new THREE.OctahedronGeometry(0.025), materials.accent, new THREE.Vector3(Math.sin(i * 2) * 0.013, y + (i - 1) * 0.035, z), new THREE.Euler(0, 0, 0.3), new THREE.Vector3(0.65, 1, 0.22));
+    }
+    if (design.tier >= 3) for (let i = 0; i < design.tier - 1; i++) {
+      const yy = 0.16 + i * 0.087, p = bladeSection(design, yy / KATANA.nagasa);
+      add(new THREE.BoxGeometry(0.033, 0.0025, 0.002), materials.inlay, new THREE.Vector3(p.edge + p.span * 0.78, yy, face * p.half * 0.81), new THREE.Euler(0, 0, -0.6));
+    }
+  }
+  let triangles = 0;
+  for (const [material, geometries] of batches) {
+    const merged = mergeGeometries(geometries)!;
+    geometries.forEach((geometry) => geometry.dispose());
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.name = Object.entries(materials).find(([, entry]) => entry === material)?.[0] ?? 'detail';
+    triangles += merged.getAttribute('position').count / 3;
+    group.add(mesh);
+  }
   group.position.y = KATANA.centerOffset;
   return { group, triangles };
 }
 
-/** Shinogi-zukuri blade: 8-vertex rings (edge, hamon, shinogi, mune ×2 + apex) swept along a curved centreline. */
-function bladeGeometry(): THREE.BufferGeometry {
-  const rings = 72;
-  const perRing = 8;
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const indices: number[] = [];
-  const body = new THREE.Color(0.86, 0.87, 0.88);
-  const hamon = new THREE.Color(0.94, 0.95, 0.96);
-  const kissakiStart = 1 - KATANA.kissaki / KATANA.nagasa;
+export function bladeSection(design: KatanaDesign, t: number): { edge: number; spine: number; span: number; half: number } {
+  const bow = design.curvature * 4 * Math.pow(t, 1.15) * (1 - t);
+  const width = design.width * (1 - t * 0.32);
+  const tip = Math.max(0, (t - 0.9) / 0.1);
+  const taper = Math.sqrt(Math.max(0.00001, 1 - tip * tip));
+  const spine = bow + width / 2, span = width * taper;
+  return { edge: spine - span, spine, span, half: (0.023 - t * 0.007) * taper };
+}
 
-  for (let ring = 0; ring <= rings; ring += 1) {
-    const t = ring / rings;
-    const y = t * KATANA.nagasa;
-    // Sori: the centreline bows toward the spine, peaking slightly forward of the middle.
-    const bow = KATANA.sori * 4 * Math.pow(t, 1.15) * (1 - t);
-    const taper = 1 - (1 - KATANA.widthTip / KATANA.widthBase) * t;
-    const width = KATANA.widthBase * taper;
-    let thickness = KATANA.thicknessBase - (KATANA.thicknessBase - KATANA.thicknessTip) * t;
-    let xEdge = bow - width / 2;
-    const xSpine = bow + width / 2;
-    if (t > kissakiStart) {
-      // Kissaki: the edge sweeps up to meet the spine at the point; thickness fades with it.
-      const u = (t - kissakiStart) / (1 - kissakiStart);
-      const k = Math.sqrt(Math.max(0, 1 - u * u));
-      xEdge = xSpine - width * k;
-      thickness *= Math.max(0.05, k);
-    }
-    const span = xSpine - xEdge;
-    const xShinogi = xEdge + span * KATANA.shinogi;
-    const hamonFraction = 0.36 + 0.07 * Math.sin(t * 27) + 0.04 * Math.sin(t * 11 + 1.3);
-    const xHamon = xEdge + span * Math.min(KATANA.shinogi - 0.05, hamonFraction);
-    const half = thickness / 2;
-    const ringPoints: [number, number, boolean][] = [
-      [xEdge, 0, true],
-      [xHamon, half * 0.55, true],
-      [xShinogi, half, false],
-      [xSpine - span * 0.06, half * 0.45, false],
-      [xSpine, 0, false],
-      [xSpine - span * 0.06, -half * 0.45, false],
-      [xShinogi, -half, false],
-      [xHamon, -half * 0.55, true],
-    ];
-    for (const [x, z, light] of ringPoints) {
-      positions.push(x, y, z);
-      const color = light ? hamon : body;
-      colors.push(color.r, color.g, color.b);
-    }
-  }
-  for (let ring = 0; ring < rings; ring += 1) {
-    const a = ring * perRing;
-    const b = a + perRing;
-    for (let corner = 0; corner < perRing; corner += 1) {
-      const next = (corner + 1) % perRing;
-      indices.push(a + corner, b + corner, a + next, a + next, b + corner, b + next);
+export function bladeGeometry(design: KatanaDesign): THREE.BufferGeometry {
+  const positions: number[] = [], colors: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const rings = 128, corners = 12;
+  for (let i = 0; i <= rings; i++) {
+    const t = i / rings;
+    const { edge, span, half } = bladeSection(design, t);
+    const h = hamonAt(design, t);
+    const section = [[0, 0, 1.05], [h - 0.025, (h - 0.025) / 0.66, 1.02], [h, h / 0.66, 1.09], [h + 0.025, (h + 0.025) / 0.66, 0.82], [0.66, 1, 0.80], [0.95, 0.52, 0.55], [1, 0, 0.70], [0.95, -0.52, 0.55], [0.66, -1, 0.80], [h + 0.025, -(h + 0.025) / 0.66, 0.82], [h, -h / 0.66, 1.09], [h - 0.025, -(h - 0.025) / 0.66, 1.02]];
+    for (let c = 0; c < corners; c++) {
+      const [fraction, z, shade] = section[c]!;
+      positions.push(edge + span * fraction!, t * KATANA.nagasa, half * z!);
+      const value = shade! * (t >= 0.9 ? 0.95 : 1);
+      colors.push(value, value, value); uvs.push(fraction!, t);
+      if (i < rings) {
+        const a = i * corners + c, b = i * corners + (c + 1) % corners;
+        indices.push(a, a + corners, b, b, a + corners, b + corners);
+      }
     }
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
-  const flat = geometry.toNonIndexed();
-  flat.computeVertexNormals();
-  geometry.dispose();
+  geometry.computeVertexNormals();
+  const flat = geometry.toNonIndexed(); geometry.dispose();
   return flat;
 }
-
-/** Rounded-square tsuba with the blade slot through the centre. */
-function tsubaGeometry(): THREE.BufferGeometry {
-  const size = KATANA.tsubaSize;
-  const radius = size * 0.28;
-  const half = size / 2;
+function tsubaGeometry(design: KatanaDesign): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
-  shape.moveTo(-half + radius, -half);
-  shape.lineTo(half - radius, -half);
-  shape.quadraticCurveTo(half, -half, half, -half + radius);
-  shape.lineTo(half, half - radius);
-  shape.quadraticCurveTo(half, half, half - radius, half);
-  shape.lineTo(-half + radius, half);
-  shape.quadraticCurveTo(-half, half, -half, half - radius);
-  shape.lineTo(-half, -half + radius);
-  shape.quadraticCurveTo(-half, -half, -half + radius, -half);
+  for (let i = 0; i <= 96; i++) {
+    const a = i / 96 * Math.PI * 2, r = guardRadiusAt(design, a);
+    const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.83;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
   const slot = new THREE.Path();
-  const sw = KATANA.widthBase * 0.62;
-  const sh = KATANA.thicknessBase * 1.3;
-  slot.moveTo(-sw, -sh); slot.lineTo(sw, -sh); slot.lineTo(sw, sh); slot.lineTo(-sw, sh); slot.closePath();
+  slot.absellipse(0, 0, design.width * 0.47, 0.035, 0, Math.PI * 2, true, 0);
   shape.holes.push(slot);
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: KATANA.tsubaThickness, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 10 });
-  geometry.center();
-  return geometry;
+  if (design.tier > 1) {
+    const count = design.motif === 'storm' ? 5 : design.motif === 'sun' ? 8 : 4;
+    for (let i = 0; i < count; i++) {
+      const a = (i + 0.5) / count * Math.PI * 2;
+      const hole = new THREE.Path();
+      hole.absellipse(Math.cos(a) * design.guardRadius * 0.68, Math.sin(a) * design.guardRadius * 0.56, 0.031, 0.023, 0, Math.PI * 2, true, a);
+      shape.holes.push(hole);
+    }
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.055, bevelEnabled: true, bevelThickness: 0.007, bevelSize: 0.006, bevelSegments: 1, curveSegments: 8 });
+  geometry.center(); return geometry;
 }
-
-/** Ito wrap: alternating diamonds of samé showing through the crossing bands. */
-function wrapTexture(wrapColor: string, nodeColor: string): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 512;
+function wrapBandGeometry(top: number, direction: number, row: number): THREE.BufferGeometry {
+  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const segments = 40;
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments, a = t * Math.PI * 2 * direction + (direction === -1 ? Math.PI : 0);
+    const taper = 1 - (row + t) * 0.014;
+    const rx = (0.109 + (direction === 1 ? 0.002 : 0)) * taper;
+    const rz = (0.071 + (direction === 1 ? 0.002 : 0)) * taper;
+    for (const side of [-1, 1]) {
+      positions.push(Math.cos(a) * rx, Math.max(-1.52, Math.min(-0.30, top - t * 0.20 + side * 0.022)), Math.sin(a) * rz);
+      uvs.push(t * 4, (side + 1) / 2);
+    }
+    if (i < segments) {
+      const n = i * 2;
+      if (direction === 1) indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+      else indices.push(n, n + 2, n + 1, n + 1, n + 2, n + 3);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
+}
+function silkTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = wrapColor;
-  ctx.fillRect(0, 0, 128, 512);
-  // Samé nodes: soft speckle field.
-  ctx.fillStyle = nodeColor;
-  for (let index = 0; index < 900; index += 1) {
-    ctx.globalAlpha = 0.25 + Math.random() * 0.35;
-    ctx.beginPath();
-    ctx.arc(Math.random() * 128, Math.random() * 512, 0.8 + Math.random() * 1.2, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.fillStyle = '#e5e5e5'; ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 128; i += 3) {
+    ctx.fillStyle = '#bababa'; ctx.fillRect(i, 0, 1, 128);
+    ctx.fillStyle = '#f1f1f1'; ctx.fillRect(0, i, 128, 1);
   }
-  ctx.globalAlpha = 1;
-  // Crossing bands leave a column of alternating diamonds down the middle.
-  const bandHeight = 40;
-  ctx.fillStyle = wrapColor;
-  for (let y = -bandHeight; y < 512 + bandHeight; y += bandHeight) {
-    ctx.beginPath();
-    ctx.moveTo(0, y); ctx.lineTo(128, y + bandHeight * 0.55); ctx.lineTo(128, y + bandHeight); ctx.lineTo(0, y + bandHeight * 0.45); ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(128, y + bandHeight * 0.5); ctx.lineTo(0, y + bandHeight * 1.05); ctx.lineTo(0, y + bandHeight * 1.5); ctx.lineTo(128, y + bandHeight * 0.95); ctx.closePath();
-    ctx.fill();
-  }
-  // Band edges catch a little light.
-  ctx.strokeStyle = mixHex(wrapColor, '#ffffff', 0.12);
-  ctx.lineWidth = 1;
-  for (let y = -bandHeight; y < 512 + bandHeight; y += bandHeight) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(128, y + bandHeight * 0.55); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(128, y + bandHeight * 0.5); ctx.lineTo(0, y + bandHeight * 1.05); ctx.stroke();
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1.6);
-  return texture;
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; return texture;
 }
-
-function mixHex(a: string, b: string, t: number): string {
-  return `#${new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()}`;
+function steelTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#eeeef0'; ctx.fillRect(0, 0, 256, 1024);
+  for (let i = 0; i < 200; i++) {
+    ctx.strokeStyle = i % 3 ? 'rgba(65,75,87,0.06)' : 'rgba(255,255,255,0.28)';
+    ctx.lineWidth = 0.4 + seeded(i) * 0.9; ctx.beginPath();
+    const x = seeded(i + 800) * 256;
+    for (let y = 0; y <= 1024; y += 16) {
+      const xx = x + Math.sin(y * 0.015 + i) * 0.9 + Math.sin(y * 0.045 + i * 0.3) * 0.4;
+      if (y === 0) ctx.moveTo(xx, y); else ctx.lineTo(xx, y);
+    }
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+}
+function underlayTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#848484'; ctx.fillRect(0, 0, 128, 512);
+  for (let row = 0; row < 86; row++) for (let col = 0; col < 22; col++) {
+    const x = col * 6 + (row % 2) * 3, y = row * 6;
+    ctx.fillStyle = '#bcbcbc'; ctx.beginPath(); ctx.arc(x, y, 1.8 + seeded(row * 22 + col) * 0.65, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#efefef'; ctx.beginPath(); ctx.arc(x - 0.5, y - 0.5, 0.8, 0, Math.PI * 2); ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+}
+function seeded(index: number): number { const n = Math.sin(index * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }
+export function disposeKatana(group: THREE.Group, materials: KatanaMaterials): void {
+  group.traverse((object) => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+  const textures = new Set<THREE.Texture>();
+  for (const material of Object.values(materials)) {
+    for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+    material.dispose();
+  }
+  textures.forEach((texture) => texture.dispose());
 }

@@ -4,6 +4,7 @@ Everything about the V2 overhaul lives in `docs/`. Both agents (Codex and Claude
 
 | File / folder | What it is | Who updates it |
 | --- | --- | --- |
+| `research-2026-09-12-katana-collection.md` | Five katana designs: museum references, cosmetic progression, animations, equipment consistency and validation plan | Codex |
 | `HANDOFF.md` | Running log of who is working, what was done last, what to pick up next. **Read this first.** | Every session, at start and end |
 | `v2-audit.md` | Phase 0 audit of the V1 codebase (what works / broken / generic / redesign / refactor) | Codex, 11 Sep 2026 |
 | `research-v2.md` | Reference palette sampling + Tetris / match-3 / bubble / UI research with sources | Codex, extended by Claude |

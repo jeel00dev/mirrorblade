@@ -327,7 +327,8 @@ test('V3: difficulty stage, recharge cost and charge tier are visible and rise w
   expect(s.bladesEarned).toBe(1);
   expect(s.rechargeCost).toBe(115);
   await expect(page.locator('#energy-label')).toContainText('Charge II', { timeout: 3000 });
-  expect(s.bladeTriangles).toBeLessThan(3000);
+  // Detailed collection replaces the original 1.6k model; see the katana research budget.
+  expect(s.bladeTriangles).toBeLessThan(15000);
 });
 
 test('V3: a Mirror Contract completes on a qualifying clear and pays its reward', async ({ page }) => {

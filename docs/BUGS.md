@@ -1,5 +1,9 @@
 # MIRRORBLADE V2 bug tracker
 
+## V3-005 — Catalog blade can inherit a depleted gameplay appearance
+
+Severity: medium (presentation). Status: FIXED 2026-09-12. Identified during inspection of the old shared scene: catalog preview changed the skin and mount but retained the gameplay charge/hover/Fracture state, so opening a blade preview from a depleted run could dull the shop object. Catalog now initializes a neutral display state, and Home/catalog material response is independent of gameplay charges. Preview disposal restores the complete equipped design. Covered by catalog/equipment tests and the collection capture pass; gameplay charge rules are unchanged.
+
 ## V2-001 — Board surface darkens rendered pieces
 
 Severity: high. Status: FIXED 2026-09-11 (Claude). Root fix: board and tray share one CSS block component (`src/render/blocks.ts`); the WebGL board scene was removed. Test: `e2e/responsive.spec.ts` asserts identical computed block backgrounds; sampled face colours within ±4 RGB of the reference. Reproduction: place any colored shape; compare to tray. Expected: same recognizable resin color. Actual: HTML board background overlays WebGL canvas. Fix: pending stacking/material redesign. Test: `qa/v1/diagnostic-overlay-removed.png` isolates cause; V2 populated-color regression required.
