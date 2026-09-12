@@ -154,9 +154,11 @@ export function buildHowToScreen(backAction: string): HTMLElement {
         ${step(3, 'Rotate', 'Tap a piece (or press R) to turn it a quarter clockwise. Rotation is free and works on cut fragments too.', `<div class="demo demo-rotate">${line3}</div>`)}
         ${step(4, 'Cut', 'Drag a piece over the katana to split it along the lit seam. Each cut spends a blade — and you can keep splitting fragments while you have blades.', `<div class="demo demo-cut"><span class="slash"></span><span class="half a">${two}</span><span class="half b">${two}</span><span class="whole">${four}</span></div>`)}
         ${step(5, 'Blade Energy', 'Clears fill the ring around the katana. A full ring forges a new blade, up to 5. Each blade you forge costs a little more energy than the last — the ring gains tick marks as the cost rises.', `<div class="demo demo-energy"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/><circle class="fill" cx="50" cy="50" r="44" fill="none" stroke="var(--info)" stroke-width="5" stroke-linecap="round" stroke-dasharray="276"/></svg>${icon('blade')}<b class="count">3</b></div>`)}
-        ${step(6, 'Combo', 'Two lines in one placement is a DOUBLE, three a TRIPLE, four or more a MAX. Clearing on consecutive moves builds a Symmetry Chain. Bigger clears give more energy and louder feedback.', `<div class="demo demo-combo">${mini('<i class="f"></i><i class="f"></i><i class="f"></i>' + empty(3) + '<i class="f"></i><i class="f"></i><i class="f"></i>')}<span class="word">DOUBLE</span></div>`)}
-        ${step(7, 'Overdrive', 'A chain of three clears ignites Refraction Overdrive: ten seconds of double score. The board warms up and the music lifts. Keep clearing.', `<div class="demo demo-overdrive">${mini(empty(9))}<span class="chip">2×</span></div>`)}
-        ${step(8, 'Fracture', 'When the board is dense and you have stalled, the mirror fractures: you get a short window per placement. Any line clear escapes. Clearing with under a second left is a Clutch.', `<div class="demo demo-fracture">${mini(empty(9))}<span class="timer">6.2</span></div>`)}
+        ${step(6, 'Score & shards', 'Each unique mirrored cell placed gives 10 points. A line gives 100, plus 100 for every pair cleared together. Single / Double / Triple / four-line Max clears bank 1 / 4 / 9 / 16 Mirror Shards for the end of the run.', `<div class="demo demo-combo">${mini('<i class="f"></i><i class="f"></i><i class="f"></i>' + empty(3) + '<i class="f"></i><i class="f"></i><i class="f"></i>')}<span class="word">+4</span></div>`)}
+        ${step(7, 'Combo', 'Two lines in one placement is a DOUBLE, three a TRIPLE, four or more a MAX. Clearing on consecutive moves builds a Symmetry Chain. Bigger clears give more energy and louder feedback.', `<div class="demo demo-combo">${mini('<i class="f"></i><i class="f"></i><i class="f"></i>' + empty(3) + '<i class="f"></i><i class="f"></i><i class="f"></i>')}<span class="word">DOUBLE</span></div>`)}
+        ${step(8, 'Overdrive', 'A chain of three clears ignites Refraction Overdrive: ten seconds of double score. The board warms up and the music lifts. Keep clearing.', `<div class="demo demo-overdrive">${mini(empty(9))}<span class="chip">2×</span></div>`)}
+        ${step(9, 'Keep placing', 'You start with 30 seconds to place a polygon. The window steadily falls to 10 seconds as your score rises. In the final five, the board rim turns coral and counts down; a valid placement resets the full window.', `<div class="demo demo-fracture">${mini(empty(9))}<span class="timer">5</span></div>`)}
+        ${step(10, 'Fracture', 'When the board is dense and you have stalled, the mirror fractures: you get a short window per placement. Any line clear escapes. Clearing with under a second left is a Clutch.', `<div class="demo demo-fracture">${mini(empty(9))}<span class="timer">6.2</span></div>`)}
       </div>
     </section>`);
 }
@@ -205,7 +207,7 @@ export interface RunSummary {
   clutches: number;
   shards: number;
   mode: 'endless' | 'daily';
-  reason: 'stuck' | 'fracture';
+  reason: 'stuck' | 'fracture' | 'timeout';
   daily: { date: string; target: number; completed: boolean; streak: number; streakExtended: boolean; isToday: boolean } | null;
 }
 
@@ -215,7 +217,7 @@ export function buildGameOverScreen(summary: RunSummary, options: { staged?: boo
   return element(`
     <section aria-label="Run over">
       <div class="panel results${options.staged ? ' is-staged' : ''}">
-        <span class="eyebrow">${summary.reason === 'fracture' ? 'The mirror fractured' : summary.mode === 'daily' ? `Daily Mirror · ${formatDailyDate(summary.daily?.date ?? '')}` : 'Mirror at rest'}</span>
+        <span class="eyebrow">${summary.reason === 'fracture' ? 'The mirror fractured' : summary.reason === 'timeout' ? 'Time ran out' : summary.mode === 'daily' ? `Daily Mirror · ${formatDailyDate(summary.daily?.date ?? '')}` : 'Mirror at rest'}</span>
         <span class="crest-mark${summary.isNewBest ? ' is-best' : ''}">${icon('crest')}</span>
         <div class="final-score${summary.isNewBest ? ' is-best' : ''}">${summary.score.toLocaleString()}</div>
         <div class="best-line${summary.isNewBest ? ' is-new' : ''}">${summary.isNewBest ? 'NEW BEST' : `Best ${summary.best.toLocaleString()}`}</div>

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CLUTCH, FRACTURE, OVERDRIVE } from '../src/config/modes';
+import { CLUTCH, FRACTURE, OVERDRIVE, PLACEMENT_DEADLINE } from '../src/config/modes';
 import { SCORING } from '../src/config/scoring';
 import { Fracture } from '../src/game/Fracture';
 import { Overdrive } from '../src/game/Overdrive';
+import { PlacementDeadline, placementWindowMs } from '../src/game/PlacementDeadline';
 import { RunClock } from '../src/game/RunClock';
 import { ScoreSystem } from '../src/game/ScoreSystem';
 import type { SkillEvent } from '../src/game/SkillEvents';
@@ -29,6 +30,52 @@ describe('run clock', () => {
     time = 6500;
     expect(clock.now()).toBe(1500);
     expect(clock.isRunning()).toBe(true);
+  });
+});
+
+describe('progressive placement deadline', () => {
+  it('maps the Director base level to the exact 30→10 second anchor curve', () => {
+    expect([0, 0.25, 0.5, 0.75, 1].map(placementWindowMs)).toEqual([30_000, 25_000, 20_000, 15_000, 10_000]);
+    expect(placementWindowMs(-3)).toBe(PLACEMENT_DEADLINE.startMs);
+    expect(placementWindowMs(4)).toBe(PLACEMENT_DEADLINE.minMs);
+    expect(placementWindowMs(Number.NaN)).toBe(PLACEMENT_DEADLINE.startMs);
+  });
+
+  it('shows 5 through 1 only in the final five seconds and emits expiry once', () => {
+    const deadline = new PlacementDeadline();
+    deadline.arm(1_000, 0);
+    expect(deadline.snapshot(25_999).warning).toBe(false);
+    expect(deadline.snapshot(26_000)).toMatchObject({ active: true, remainingMs: 5_000, seconds: 5, warning: true, expired: false });
+    expect(deadline.snapshot(30_001).seconds).toBe(1);
+    expect(deadline.snapshot(31_000).expired).toBe(true);
+    expect(deadline.update(31_000)).toBe('expired');
+    expect(deadline.update(31_001)).toBeNull();
+    expect(deadline.snapshot(31_001).active).toBe(false);
+  });
+
+  it('re-arms a full score-scaled window after placement and can be cleared', () => {
+    const deadline = new PlacementDeadline();
+    deadline.arm(0, 0);
+    deadline.arm(29_000, 1);
+    expect(deadline.snapshot(29_000)).toMatchObject({ active: true, remainingMs: 10_000, windowMs: 10_000, warning: false });
+    deadline.clear();
+    expect(deadline.snapshot(40_000).active).toBe(false);
+  });
+
+  it('inherits hidden/menu fairness from the active run clock', () => {
+    let time = 0;
+    const clock = new RunClock(() => time);
+    const deadline = new PlacementDeadline();
+    clock.reset();
+    deadline.arm(clock.now(), 0);
+    time = 24_000;
+    clock.gate('hidden', false);
+    const remaining = deadline.snapshot(clock.now()).remainingMs;
+    time = 200_000;
+    expect(deadline.snapshot(clock.now()).remainingMs).toBe(remaining);
+    clock.gate('hidden', true);
+    time = 201_000;
+    expect(deadline.snapshot(clock.now()).remainingMs).toBe(remaining - 1_000);
   });
 });
 

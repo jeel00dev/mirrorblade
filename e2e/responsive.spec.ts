@@ -28,7 +28,8 @@ test('all target viewports keep board, tray, score and blade inside the screen w
   for (const [width, height] of viewports) {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(80);
-    for (const selector of ['.board', '#tray', '#blade-zone', '.hud-score', '.hud-controls', '.tray-slot:nth-child(3) .piece']) await assertInViewport(page, selector, width, height);
+    await page.evaluate(() => window.__MIRRORBLADE_TEST__!.setPlacementDeadline(5_000));
+    for (const selector of ['.board', '#tray', '#blade-zone', '.hud-score', '.hud-controls', '.tray-slot:nth-child(3) .piece', '.placement-deadline']) await assertInViewport(page, selector, width, height);
     const board = await page.locator('.board').boundingBox();
     expect(Math.abs(board!.width - board!.height)).toBeLessThan(2);
     expect(board!.width, `board size at ${width}x${height}`).toBeGreaterThanOrEqual(width < 500 && height < 500 ? 270 : 300);

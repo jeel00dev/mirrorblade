@@ -29,3 +29,10 @@ export const FRACTURE = {
 export const CLUTCH = {
   thresholdMs: 1_000,
 } as const;
+
+/** Ordinary placement pressure — score progression shortens the decision window, never below ten seconds. */
+export const PLACEMENT_DEADLINE = {
+  startMs: 30_000,
+  minMs: 10_000,
+  finalWarningMs: 5_000,
+} as const;

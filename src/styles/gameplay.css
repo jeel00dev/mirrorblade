@@ -104,6 +104,32 @@
 .effects-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .board-wrap .callout-host { inset: calc(var(--cell) * -0.6); }
 
+/* Final-five placement deadline. It shares the board geometry but never captures a drop. */
+.placement-deadline {
+  position: absolute;
+  z-index: 32;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  min-width: clamp(72px, calc(var(--cell) * 2.15), 112px);
+  padding: clamp(7px, calc(var(--cell) * 0.18), 11px) clamp(14px, calc(var(--cell) * 0.35), 22px);
+  border-radius: var(--r-l);
+  color: #ffe9e7;
+  background: linear-gradient(180deg, rgba(48, 31, 34, 0.92), rgba(20, 20, 25, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 235, 232, 0.13), inset 0 0 0 1px rgba(234, 125, 120, 0.48), 0 12px 30px rgba(0, 0, 0, 0.46), 0 0 24px rgba(234, 125, 120, 0.16);
+  backdrop-filter: blur(8px);
+  animation: deadline-enter var(--t-standard) var(--ease-out);
+}
+.placement-deadline[hidden] { display: none; }
+.placement-deadline > span { color: var(--danger); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.18em; line-height: 1; }
+.placement-deadline > strong { margin-top: 2px; font-size: clamp(38px, calc(var(--cell) * 1.25), 68px); line-height: 0.92; font-weight: 800; text-shadow: 0 0 18px rgba(234, 125, 120, 0.3); }
+.placement-deadline.is-ticking > strong { animation: deadline-digit 420ms var(--ease-out); }
+@keyframes deadline-enter { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes deadline-digit { 0% { transform: scale(1.18); filter: brightness(1.4); } 100% { transform: scale(1); filter: brightness(1); } }
+
 /* ---------- Tray ---------- */
 .tray {
   grid-area: tray;

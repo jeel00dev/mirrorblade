@@ -2,6 +2,32 @@
 
 Newest entry first. Each session appends: who, when, what was done, what to pick up next.
 
+## 2026-09-12 — Codex: progressive placement deadline on `fix/score`
+
+Followed the docs-first workflow and completed primary-source timing/accessibility/difficulty research before source changes in `research-2026-09-12-progressive-placement-deadline.md`.
+
+Implemented a score-scaled placement deadline with `PlacementDeadline`: 30 seconds at the run start, linearly reduced through the existing Difficulty Director base curve to a ten-second floor. A successful polygon placement clears the final-five warning immediately and rearms after resolution; rotation, cutting and failed drops do not reset it. Onboarding remains untimed. Fracture clears and supersedes the ordinary deadline, then a successful escape rearms it.
+
+The last five seconds use a responsive board-centered `PLACE` digit panel and a danger-coral orbit on the existing board rim. It has timer semantics, integer updates, pointer transparency and a static reduced-motion treatment. Expiry reuses the equipped-katana game-over cinematic and labels results `Time ran out`. The Guide, README, debug bridge and QA scripts are updated.
+
+The scoring/shard work was re-tested in both directions: a simultaneous two-line clear yields exactly 350 score and four run shards, while a no-clear mirrored placement yields 20 score and zero run/persistent shards. `npm run check` passes 113 unit tests plus lint, strict TypeScript and production build. All 42 Playwright tests pass, including deadline reset/floor/timeout, Fracture, clock gates and 16 responsive layouts. Nine deadline captures (seven standard, two reduced-motion) completed without console errors and were inspected through `qa/v3/deadline-responsive-comparison.png` plus the original phone captures.
+
+Changes remain local and uncommitted on `fix/score`; no commit or push has been requested. The dev server is available at http://127.0.0.1:5173 for review.
+
+---
+
+## 2026-09-12 — Codex: deterministic score and shards on `fix/score`
+
+Started from latest `main` (`7bbdb7c`) after reading docs, `CONTRIBUTING.md`, `AGENTS.md` and recent commits. Completed primary-source research before implementation in `research-2026-09-12-deterministic-scoring-and-shards.md`.
+
+Implemented deterministic scoring: `10P` for unique mirrored cells, `100L + 100 × L(L − 1) / 2` for rows plus columns cleared together, then existing chain/skill additions and the active score multiplier. Normal shards now accumulate per clear as `L²` (1 / 4 / 9 / 16 for Single through four-line Max) and commit at game over. Precision/contract/debug score paths use public `ScoreSystem` methods. Guide, README, tests, simulator and balance report are updated; the UI stays within the existing OBSIDIAN MIRROR system.
+
+Validation is complete: `npm run check` passes with 109 unit tests; `npm run test:e2e -- --workers=1` passes all 39 browser tests; `npm run simulate` passes 150 seeded runs per policy; `npm run capture` passes at seven viewports with no console errors. Desktop and 390×844 Score & Shards cards were inspected directly. The current simulation estimates 219.9 / 99.9 / 16.8 mean normal shards for greedy / casual / random policies; human time-to-purchase testing is the remaining economy check.
+
+Changes are local and uncommitted on `fix/score`; no commit or push has been requested.
+
+---
+
 ## 2026-09-12 — Codex: five katana collection on `ui/shop`
 
 Started with docs, contribution rules and the single available import commit (`33155d1`). New museum/game-development research is in `research-2026-09-12-katana-collection.md`. Standing owner preferences are in root `AGENTS.md`.

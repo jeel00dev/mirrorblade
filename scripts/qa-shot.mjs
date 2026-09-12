@@ -1,6 +1,6 @@
 /**
  * Quick QA screenshot. Usage:
- *   node scripts/qa-shot.mjs <width> <height> <out.png> [--play] [--state overdrive|fracture|stress|contract]
+ *   node scripts/qa-shot.mjs <width> <height> <out.png> [--play] [--state overdrive|fracture|stress|contract|deadline]
  *        [--screen shop|collection|settings|stats|achievements|daily|howto|pause|gameover]
  *        [--fresh] [--score N] [--a11y accessible|contrast|reduced] [--url http://127.0.0.1:5173]
  *        [--cinematic <ms>]   capture the game-over cinematic this many ms after the run ends (implies --screen gameover)
@@ -51,6 +51,7 @@ if (has('play') || screen === 'pause' || screen === 'gameover' || flag('state') 
   if (state === 'fracture') { await page.evaluate(() => window.__MIRRORBLADE_TEST__.forceFracture()); await page.waitForTimeout(3600); }
   if (state === 'stress') { await page.evaluate(() => { const g = window.__MIRRORBLADE_TEST__.game; for (let i = 0; i < 8; i++) g['director'].observe({ score: g['score'].current(), lineCount: 0, occupancy: 0.5, legalOptions: 20 }); g['presentStress'](g['director'].state()); }); await page.waitForTimeout(500); }
   if (state === 'contract') { await page.evaluate(() => { const g = window.__MIRRORBLADE_TEST__.game; const c = { kind: 'clear-lines', title: 'Clear 2 lines', detail: 'in 3 moves', target: 2, progress: 1, movesLeft: 2, reward: { score: 300, energy: 25, shards: 3 } }; g['contracts']['active'] = c; g['view'].setContract(c, 'offered'); g['view'].board.setPrecision([{ row: 6, col: 1 }, { row: 6, col: 7 }]); }); await page.waitForTimeout(400); }
+  if (state === 'deadline') { await page.evaluate(() => window.__MIRRORBLADE_TEST__.setPlacementDeadline(5_000)); await page.waitForTimeout(200); }
   if (screen === 'pause') { await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
   if (screen === 'gameover' || flag('cinematic')) { await page.evaluate(() => { const t = window.__MIRRORBLADE_TEST__; t.game.debugSetScore(13410); t.endRun(); }); await page.waitForTimeout(Number(flag('cinematic') ?? 2400)); }
 } else if (screen) {

@@ -32,6 +32,10 @@ export class GameplayView {
   private readonly energyLabel: HTMLElement;
   private readonly ring: SVGCircleElement;
   private readonly hintBar: HTMLElement;
+  private readonly placementDeadline: HTMLElement;
+  private readonly placementDeadlineDigit: HTMLElement;
+  private readonly placementDeadlineCopy: HTMLElement;
+  private placementDeadlineSeconds: number | null = null;
   private readonly stageMark: HTMLElement;
   private readonly ticks: SVGGElement;
   private layout: LayoutMetrics;
@@ -50,7 +54,7 @@ export class GameplayView {
         <div class="hud-controls">${iconButton('home', 'Home', 'home')}${iconButton('pause', 'Pause', 'pause')}</div>
       </header>
       <div class="hud-status" id="hud-status" aria-live="polite"></div>
-      <div class="board-wrap"><div id="board"></div><div class="effects-host"></div><div class="callout-host"></div></div>
+      <div class="board-wrap"><div id="board"></div><div class="effects-host"></div><div class="callout-host"></div><div class="placement-deadline" role="timer" aria-live="off" aria-atomic="true" hidden><span>PLACE</span><strong class="num" aria-hidden="true">5</strong><small class="visually-hidden">Place a polygon. 5 seconds remaining.</small></div></div>
       <div id="tray"></div>
       <div class="blade-zone" id="blade-zone" data-testid="blade" aria-label="Blade">
         <div class="blade-dock">
@@ -75,6 +79,9 @@ export class GameplayView {
     this.energyLabel = this.element.querySelector<HTMLElement>('#energy-label')!;
     this.ring = this.element.querySelector<SVGCircleElement>('.energy-ring .fill')!;
     this.hintBar = this.element.querySelector<HTMLElement>('#hint-bar')!;
+    this.placementDeadline = this.element.querySelector<HTMLElement>('.placement-deadline')!;
+    this.placementDeadlineDigit = this.placementDeadline.querySelector<HTMLElement>('strong')!;
+    this.placementDeadlineCopy = this.placementDeadline.querySelector<HTMLElement>('small')!;
     this.stageMark = this.element.querySelector<HTMLElement>('#mirror-stage')!;
     this.ticks = this.element.querySelector<SVGGElement>('#energy-ticks')!;
     this.layout = computeLayout(window.innerWidth, window.innerHeight);
@@ -162,6 +169,28 @@ export class GameplayView {
     this.bladeZone.classList.remove('suggest-cut');
     void this.bladeZone.offsetWidth;
     this.bladeZone.classList.add('suggest-cut');
+  }
+
+  /** Final-five placement warning; `null` removes it synchronously after a committed placement. */
+  public setPlacementDeadline(seconds: number | null): void {
+    if (seconds === null || seconds <= 0) {
+      this.placementDeadlineSeconds = null;
+      this.placementDeadline.hidden = true;
+      this.placementDeadline.setAttribute('aria-live', 'off');
+      this.placementDeadline.removeAttribute('data-seconds');
+      return;
+    }
+    const value = String(Math.max(1, Math.min(5, Math.ceil(seconds))));
+    this.placementDeadline.hidden = false;
+    this.placementDeadline.setAttribute('aria-live', 'polite');
+    if (this.placementDeadlineSeconds === Number(value)) return;
+    this.placementDeadlineSeconds = Number(value);
+    this.placementDeadlineDigit.textContent = value;
+    this.placementDeadlineCopy.textContent = `Place a polygon. ${value} ${value === '1' ? 'second' : 'seconds'} remaining.`;
+    this.placementDeadline.dataset.seconds = value;
+    this.placementDeadline.classList.remove('is-ticking');
+    void this.placementDeadline.offsetWidth;
+    this.placementDeadline.classList.add('is-ticking');
   }
 
   public setStatus(status: HudStatus): void {

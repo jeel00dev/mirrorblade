@@ -1,5 +1,9 @@
 # MIRRORBLADE V2 bug tracker
 
+## V3-010 — A live run can wait forever without placing a polygon
+
+Severity: high (gameplay pressure). Status: FIXED 2026-09-12. Reproduction: start or resume a run, leave the board untouched, and keep the gameplay screen active. Expected: a score-scaled placement deadline starts at 30 seconds, bottoms out at 10 seconds, warns during the final five seconds, resets after each valid placement, and expires through the katana game-over sequence. Actual before fix: ordinary play had no inactivity deadline; only the specialized Fracture state could time out. Fix: `PlacementDeadline` uses absolute active-run time and the Difficulty Director's score-based level; valid board placements rearm it after resolution, while cuts and failed drops do not. Onboarding is untimed, and Fracture supersedes the ordinary deadline. The final-five timer and coral board rim are responsive and retain a static reduced-motion treatment. Tests: `tests/modes.test.ts`; Playwright deadline/reset/floor/timeout, onboarding, cut, Fracture, hidden/menu gate, no-clear shard, and 16-viewport cases. Research: `docs/research-2026-09-12-progressive-placement-deadline.md`.
+
 ## V3-005 — Catalog blade can inherit a depleted gameplay appearance
 
 Severity: medium (presentation). Status: FIXED 2026-09-12. Identified during inspection of the old shared scene: catalog preview changed the skin and mount but retained the gameplay charge/hover/Fracture state, so opening a blade preview from a depleted run could dull the shop object. Catalog now initializes a neutral display state, and Home/catalog material response is independent of gameplay charges. Preview disposal restores the complete equipped design. Covered by catalog/equipment tests and the collection capture pass; gameplay charge rules are unchanged.
@@ -75,3 +79,11 @@ Severity: medium (performance). Status: FIXED 2026-09-12. Reproduction: first ci
 ## V3-007 — Twenty-restart e2e would exceed its timeout with the full cinematic
 
 Severity: low (tooling). Status: FIXED 2026-09-12. Twenty full sequences take ~45 s. The test now skips each sequence as soon as the strike lands (`skipCinematic()`), which also exercises skip cleanup, and its timeout is 120 s.
+
+## V3-008 — Normal shard payout hid line-clearing performance behind final score
+
+Severity: medium (economy and score clarity). Status: FIXED 2026-09-12. Reproduction: finish two runs with the same cleared rows/columns but different placement, skill, Overdrive or best-score totals. Expected: normal shards equal the lines cleared, scaled by the simultaneous clear tier; identical committed moves always produce an explainable score. Actual: end-of-run currency converted aggregate score through thresholds, caps and event bonuses, while multi-line score used an opaque finite lookup. Fix: normal shards now accumulate per clear as `L²`; placement is `10P`; clear score is `100L + 100 × L(L − 1) / 2`; fixed rewards flow through the public score API. Test: `tests/scoring.test.ts`, browser test `score and run shards follow the deterministic simultaneous-line formulas`, and `npm run simulate`.
+
+## V3-009 — Touch-scroll test expected a synthetic click after a manual CDP drag
+
+Severity: low (tooling). Status: FIXED 2026-09-12. Reproduction: run the phone Shop swipe test in current Chromium; its manually dispatched touch drag scrolls the page, then Playwright's emulated tap emits pointer/touch events but Chromium suppresses the compatibility `click`. Expected: the test independently proves real touch scrolling and that the sticky category control remains actionable. Actual: the runtime click delegate never receives an event, so the test remains on Classic Spectrum. Fix: retain the real CDP swipe, wait for 18 stationary animation frames, then use Playwright's actionability-checked click for the independent sticky-control assertion. Runtime code is unchanged. Test: isolated case and the complete 39-test suite.
