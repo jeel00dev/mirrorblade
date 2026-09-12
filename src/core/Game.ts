@@ -2,7 +2,7 @@ import { AudioManager } from '../audio/AudioManager';
 import { BLADE_ENERGY } from '../config/blade';
 import { ACCESSIBLE_BLOCK_COLORS, COSMETICS, cosmeticById, type CosmeticCategory } from '../config/cosmetics';
 import { calculateRunShards, ECONOMY } from '../config/economy';
-import { DAILY_REWARD_SCORE, DRAG_MOUSE_OFFSET, DRAG_TOUCH_OFFSET, QUALITY_PROFILES, STARTING_BLADE_CHARGES, type Quality, type QualityProfile } from '../config/gameplay';
+import { DRAG_MOUSE_OFFSET, DRAG_TOUCH_OFFSET, QUALITY_PROFILES, STARTING_BLADE_CHARGES, type Quality, type QualityProfile } from '../config/gameplay';
 import { MOTION } from '../config/motion';
 import { applyEnergy, chargeTier, createRack, energyForEvent, energyProgress, rechargeCost, spendBlade, type BladeRack } from '../game/BladeEnergy';
 import { Contracts, type Contract } from '../game/Contracts';
@@ -14,6 +14,7 @@ import { BoardState } from '../game/BoardState';
 import { ClearResolver } from '../game/ClearResolver';
 import { ComboSystem } from '../game/ComboSystem';
 import { dailySeed, utcDateKey } from '../game/DailyMode';
+import { DAILY_TARGET, effectiveStreak, isCompleted, parseKey, recordDailyRun, shiftMonth } from '../game/DailyCalendar';
 import { Fracture } from '../game/Fracture';
 import { MoveAnalyzer } from '../game/MoveAnalyzer';
 import { Overdrive } from '../game/Overdrive';
@@ -35,6 +36,7 @@ import type { SaveData } from '../progression/SaveData';
 import { Ambience } from '../render/Ambience';
 import { BladeScene } from '../render/BladeScene';
 import { DragVisual } from '../render/DragVisual';
+import { GameOverCinematic, type CinematicEvent, type SlashDirection } from '../render/GameOverCinematic';
 import { GameplayView } from '../ui/GameplayView';
 import { icon } from '../ui/Icons';
 import { ScreenManager, type ScreenId } from '../ui/ScreenManager';
@@ -103,6 +105,7 @@ export class Game {
   private readonly pointer: PointerController;
   private readonly fractureEdges: HTMLElement;
   private readonly ambience: Ambience;
+  private readonly cinematic: GameOverCinematic;
   private readonly bootScreen: HTMLElement;
   private generator = new PieceGenerator(new SeededRandom(Date.now()));
   private mode: GameMode = 'endless';
@@ -117,6 +120,10 @@ export class Game {
   private deferredNavigation: (() => void) | null = null;
   private settingsReturn: 'home' | 'pause' = 'home';
   private readonly shopState: ScreenContext['shop'] = { category: 'blocks', selected: null, revealing: null };
+  private readonly dailyView: ScreenContext['dailyView'] = { year: 0, month: 0, selected: '' };
+  private dailyDate = '';
+  private dailyCompletedThisRun = false;
+  private dailyStreakExtended = false;
   private preview: PreviewHandle | null = null;
   private tick = 0;
   private lastTouchedPiece: string | null = null;
@@ -126,6 +133,9 @@ export class Game {
   private lastOverdriveTick = 0;
   private lastFractureTick = 0;
   private overdriveSecondsCommitted = 0;
+  /** The game-over slash alternates its diagonal from run to run. */
+  private nextSlash: SlashDirection = 'tr-bl';
+  private cinematicTimers: number[] = [];
 
   public constructor(
     private readonly root: HTMLElement,
@@ -154,6 +164,10 @@ export class Game {
     this.root.append(this.fractureEdges);
     this.ambience = new Ambience(this.root);
     this.blade = new BladeScene();
+    this.cinematic = new GameOverCinematic({
+      board: this.view.board, blade: this.blade, effects: this.view.effects, layerHost: this.root,
+      effectsPoint: (x, y) => this.view.effectsPoint(x, y),
+    });
     this.pointer = new PointerController(this.view.element, {
       start: (pieceId, point, element) => this.startDrag(pieceId, point, element),
       move: (point) => this.moveDrag(point),
@@ -164,7 +178,11 @@ export class Game {
     });
     this.root.addEventListener('click', this.onClick);
     this.root.addEventListener('input', this.onInput);
-    this.root.addEventListener('pointerdown', () => { void this.audio.unlock(); this.clock.gate('pointer', true); }, { capture: true });
+    this.root.addEventListener('pointerdown', () => {
+      void this.audio.unlock();
+      this.clock.gate('pointer', true);
+      if (this.phase.isCinematic()) this.cinematic.skip();
+    }, { capture: true });
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('resize', this.onResize);
     window.addEventListener('beforeunload', this.flush);
@@ -189,6 +207,8 @@ export class Game {
 
   public dispose(): void {
     cancelAnimationFrame(this.tick);
+    this.cinematic.cancel();
+    this.cinematicTimers.forEach((timer) => window.clearTimeout(timer));
     this.pointer.dispose();
     this.blade.dispose();
     this.ambience.dispose();
@@ -231,7 +251,13 @@ export class Game {
       board: this.board.snapshot(),
       activeRun: this.activeRun,
       tutorialStep: this.tutorialStep,
+      cinematic: this.cinematic.progress(),
     };
+  }
+
+  /** Skips the game-over cinematic once the strike has landed (same rule as a tap). */
+  public debugSkipCinematic(): boolean {
+    return this.cinematic.skip();
   }
 
   public debugSetBlades(value: number): void {
@@ -264,8 +290,8 @@ export class Game {
     this.view.board.setBoard(this.board.snapshot());
   }
 
-  public debugEndRun(): void {
-    if (this.activeRun) this.endRun('stuck');
+  public debugEndRun(reason: 'stuck' | 'fracture' = 'stuck'): void {
+    if (this.activeRun) this.endRun(reason);
   }
 
   public debugForceOverdrive(): void {
@@ -284,10 +310,20 @@ export class Game {
 
   // ------------------------------------------------------------------ run
 
-  private startRun(mode: GameMode): void {
+  private startRun(mode: GameMode, dailyDate?: string): void {
     this.cancelDrag(false);
     this.clearResolveTimer();
+    this.cinematic.cancel();
+    this.cinematicTimers.forEach((timer) => window.clearTimeout(timer));
+    this.cinematicTimers = [];
+    this.ambience.freeze(false);
+    this.audio.setDucked(false);
     this.mode = mode;
+    const today = utcDateKey();
+    // A future date can never be played; anything up to today can.
+    this.dailyDate = mode === 'daily' ? (dailyDate && dailyDate <= today ? dailyDate : today) : '';
+    this.dailyCompletedThisRun = false;
+    this.dailyStreakExtended = false;
     this.board.reset();
     this.score.reset();
     this.combo.reset();
@@ -301,7 +337,7 @@ export class Game {
     this.cutClearParents.clear();
     this.finishedRun = false;
     this.overdriveSecondsCommitted = 0;
-    const seed = mode === 'daily' ? dailySeed(utcDateKey()) : (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+    const seed = mode === 'daily' ? dailySeed(this.dailyDate) : (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     this.generator = new PieceGenerator(new SeededRandom(seed), { mode });
     this.runRandom = new SeededRandom((seed ^ 0x5bd1e995) >>> 0);
     this.tutorialStep = this.save.onboardingComplete || mode === 'daily' ? 0 : 1;
@@ -323,6 +359,7 @@ export class Game {
     this.audio.clearLayers();
     this.audio.setIntensity(0);
     this.refreshHUD();
+    if (mode !== 'daily') this.view.setDailyTarget(0, DAILY_TARGET, false, false);
     this.showGameplay('forward');
     this.showTutorial();
     this.platform.gameplayStart();
@@ -339,13 +376,18 @@ export class Game {
     return createPiece(definitionId, definition.cells, tone, 1);
   }
 
+  /**
+   * Game over. The model is locked and every consequence (stats, shards, save, daily) is committed immediately;
+   * the katana cinematic then plays out and the results overlay follows its RESULTS_REVEAL event.
+   */
   private endRun(reason: 'stuck' | 'fracture'): void {
     if (this.finishedRun) return;
     this.finishedRun = true;
     this.activeRun = false;
     this.cancelDrag(false);
     this.clearResolveTimer();
-    this.phase.transition('OVER');
+    this.deferredNavigation = null;
+    this.phase.transition('CINEMATIC');
     this.platform.gameplayStop();
     this.clock.gate('over', false);
     this.audio.clearLayers();
@@ -368,34 +410,86 @@ export class Game {
     stats.precisionHits += this.precision.summary().hit;
     this.commitPlayTime();
     this.commitOverdriveTime();
+    let dailySummary: RunSummary['daily'] = null;
     if (this.mode === 'daily') {
-      this.save.daily.todayScore = Math.max(this.save.daily.todayScore, finalScore);
-      this.save.daily.bestDailyScore = Math.max(this.save.daily.bestDailyScore, finalScore);
+      const today = utcDateKey();
+      const result = recordDailyRun(this.save.daily, this.dailyDate, today, finalScore);
+      if (result.firstCompletion) this.onDailyCompleted(result.streakExtended, result.streak);
+      dailySummary = { date: this.dailyDate, target: DAILY_TARGET, completed: isCompleted(this.save.daily, this.dailyDate), streak: effectiveStreak(this.save.daily, today), streakExtended: this.dailyStreakExtended || result.streakExtended, isToday: this.dailyDate === today };
     }
     this.clock.gate('over', true);
-    this.view.setDead(true);
-    if (reason === 'fracture') {
-      this.fractureEdges.classList.add('is-shattering');
-      window.setTimeout(() => this.fractureEdges.classList.remove('is-shattering'), 900);
-    }
-    this.audio.play('game-over');
-    this.audio.vibrate(10);
-    if (isNewBest) {
-      window.setTimeout(() => this.audio.play('best'), 500);
-      if (finalScore >= 1_500) this.platform.happyTime();
-    }
+    if (isNewBest && finalScore >= 1_500) this.platform.happyTime();
     this.storage.save(this.save);
     this.storage.flush();
     const summary: RunSummary = {
       score: finalScore, best: stats.bestScore, isNewBest, lines: this.runStats.lines, highestChain: this.runStats.highestChain,
       bladesForged: this.runStats.bladesForged, bladesUsed: this.runStats.bladesUsed, overdrives: this.runStats.overdrives,
-      clutches: this.runStats.clutches, shards, mode: this.mode, reason,
+      clutches: this.runStats.clutches, shards, mode: this.mode, reason, daily: dailySummary,
     };
-    window.setTimeout(() => {
-      if (!this.finishedRun) return;
-      this.blade.unmount();
-      this.screens.show('gameover', () => buildGameOverScreen(summary), { overlay: true, focus: '[data-action="restart"]' });
-    }, this.save.settings.reducedMotion ? 200 : MOTION.major);
+    const direction = this.nextSlash;
+    this.nextSlash = direction === 'tr-bl' ? 'tl-br' : 'tr-bl';
+    this.cinematic.play(
+      { reason, isNewBest, direction, reducedMotion: this.save.settings.reducedMotion, seed: this.runRandom.integer(0xffffffff), particles: this.quality.boardEffects },
+      (event) => this.onCinematicEvent(event, summary),
+    );
+  }
+
+  /** Everything outside the cinematic layer that answers its timeline: HUD, audio, haptics, phase, results. */
+  private onCinematicEvent(event: CinematicEvent, summary: RunSummary): void {
+    const reduced = this.save.settings.reducedMotion;
+    switch (event) {
+      case 'CINEMATIC_START':
+        this.view.callouts.clear();
+        this.view.hideHint();
+        this.view.setCinematic(true, { newBest: false });
+        this.ambience.freeze(true);
+        this.audio.setDucked(true);
+        if (reduced) this.audio.play('game-over');
+        break;
+      case 'KATANA_ENTER':
+        if (!reduced) this.audio.play('katana-enter');
+        break;
+      case 'KATANA_SLASH_START':
+        if (!reduced) this.audio.play('katana-slash');
+        break;
+      case 'KATANA_IMPACT':
+        if (!reduced) {
+          this.audio.play('katana-impact');
+          if (this.save.settings.screenShake) this.view.shake(2);
+        }
+        this.audio.vibrate(reduced ? 10 : [14, 30, 8]);
+        if (summary.isNewBest) this.view.setCinematic(true, { newBest: true });
+        if (summary.reason === 'fracture') {
+          this.fractureEdges.classList.add('is-shattering');
+          this.cinematicTimer(() => this.fractureEdges.classList.remove('is-shattering'), 900);
+        }
+        break;
+      case 'BLOCKS_RELEASE':
+        if (!reduced) this.audio.play('blocks-detach');
+        break;
+      case 'BLOCKS_FALL':
+        if (!reduced) for (const delay of [180, 340, 540]) this.cinematicTimer(() => this.audio.play('block-thud'), delay);
+        break;
+      case 'BOARD_SETTLED':
+        if (!reduced) this.audio.play('mirror-end');
+        break;
+      case 'RESULTS_REVEAL':
+        if (this.phase.current() === 'CINEMATIC') this.phase.transition('OVER');
+        this.audio.setDucked(false);
+        if (summary.isNewBest) this.cinematicTimer(() => this.audio.play('best'), reduced ? 0 : 160);
+        this.blade.unmount();
+        this.screens.show('gameover', () => buildGameOverScreen(summary, { staged: !reduced }), { overlay: true, focus: '[data-action="restart"]' });
+        break;
+      case 'CINEMATIC_END':
+        this.ambience.freeze(false);
+        break;
+      default:
+        break;
+    }
+  }
+
+  private cinematicTimer(action: () => void, delay: number): void {
+    this.cinematicTimers.push(window.setTimeout(action, delay));
   }
 
   // ------------------------------------------------------------------ ticking (timed systems)
@@ -976,11 +1070,20 @@ export class Game {
   // ------------------------------------------------------------------ navigation
 
   private context(): ScreenContext {
-    return { save: this.save, inventory: this.inventory, activeRun: this.activeRun && !this.finishedRun, runScore: this.score.current(), shop: this.shopState };
+    const today = utcDateKey();
+    if (!this.dailyView.selected) {
+      const { year, month } = parseKey(today);
+      this.dailyView.year = year;
+      this.dailyView.month = month;
+      this.dailyView.selected = today;
+    }
+    return { save: this.save, inventory: this.inventory, activeRun: this.activeRun && !this.finishedRun, runScore: this.score.current(), shop: this.shopState, dailyView: this.dailyView, today };
   }
 
   /** Navigation waits for an in-flight board transaction so a menu can never race a placement. */
   private navigate(action: () => void): void {
+    // The game-over cinematic owns the screen: a navigation request is at most a skip, never a screen change.
+    if (this.phase.isCinematic()) { this.cinematic.skip(); return; }
     if (this.phase.isBusy() && this.phase.current() !== 'DRAGGING') { this.deferredNavigation = action; return; }
     this.cancelDrag(false);
     action();
@@ -1058,20 +1161,39 @@ export class Game {
         break;
       case 'resume':
         if (this.activeRun && !this.finishedRun) this.showGameplay('back');
-        else this.startRun(this.mode);
+        else this.startRun(this.mode, this.dailyDate || undefined);
         break;
       case 'quick-play': this.startRun('endless'); break;
       case 'daily':
-        if (this.screens.current() === 'daily') this.startRun('daily');
-        else this.screens.show('daily', () => buildDailyScreen(this.context()), { onLeave: () => undefined });
+        this.navigate(() => {
+          if (this.screens.current() === 'gameplay') this.leaveGameplay();
+          const { year, month } = parseKey(utcDateKey());
+          this.dailyView.year = year; this.dailyView.month = month; this.dailyView.selected = utcDateKey();
+          this.screens.show('daily', () => buildDailyScreen(this.context()));
+        });
         break;
-      case 'daily-play': this.startRun('daily'); break;
+      case 'daily-month': {
+        const next = shiftMonth(this.dailyView.year, this.dailyView.month, value === 'next' ? 1 : -1);
+        const { year: ty, month: tm } = parseKey(utcDateKey());
+        if (next.year > ty || (next.year === ty && next.month > tm)) break;
+        this.dailyView.year = next.year; this.dailyView.month = next.month;
+        this.screens.refresh('daily', () => buildDailyScreen(this.context()));
+        break;
+      }
+      case 'daily-select':
+        if (value && value <= utcDateKey()) { this.dailyView.selected = value; this.screens.refresh('daily', () => buildDailyScreen(this.context())); }
+        break;
+      case 'daily-play': {
+        const date = value ?? this.dailyView.selected;
+        if (date && date <= utcDateKey()) this.startRun('daily', date);
+        break;
+      }
       case 'restart':
         this.navigate(() => {
           void this.platform.requestMidgameAd({
             onStart: () => { this.audio.setPlatformMuted(true); this.clock.gate('ad', false); },
             onFinish: () => { this.audio.setPlatformMuted(false); this.clock.gate('ad', true); },
-          }).finally(() => this.startRun(this.mode));
+          }).finally(() => this.startRun(this.mode, this.dailyDate || undefined));
         });
         break;
       case 'settings':
@@ -1100,6 +1222,8 @@ export class Game {
       case 'catalog-select':
         if (value) this.shopState.selected = value;
         this.showCatalog(this.screens.current() === 'collection' ? 'collection' : 'shop', true);
+        // On phones the page scrolls; bring the updated preview into view.
+        this.screens.activeElement()?.querySelector<HTMLElement>('.screen-body')?.scrollTo({ top: 0, behavior: this.save.settings.reducedMotion ? 'auto' : 'smooth' });
         break;
       case 'purchase': if (value) this.purchase(value); break;
       case 'equip':
@@ -1310,29 +1434,34 @@ export class Game {
     if (cleared.size >= 2) this.showUnlocks(this.achievements.evaluate({ type: 'perfect-cut' }));
   }
 
+  /** During a daily run: the first time the target is reached, record it, reward it, and credit the streak if it is today's puzzle. */
   private checkDailyReward(): void {
-    if (this.mode !== 'daily' || this.score.current() < DAILY_REWARD_SCORE) return;
-    const today = utcDateKey();
-    if (this.save.daily.lastRewardDate === today) return;
-    this.save.daily.lastRewardDate = today;
+    if (this.mode !== 'daily') return;
+    const score = this.score.current();
+    this.view.setDailyTarget(score, DAILY_TARGET, this.dailyCompletedThisRun || score >= DAILY_TARGET);
+    if (this.dailyCompletedThisRun || score < DAILY_TARGET) return;
+    this.dailyCompletedThisRun = true;
+    const result = recordDailyRun(this.save.daily, this.dailyDate, utcDateKey(), score);
+    if (result.firstCompletion) this.onDailyCompleted(result.streakExtended, result.streak);
+    else this.toasts.show('Daily target reached', 'Already completed — keep going for a better score.', 'daily');
+  }
+
+  private onDailyCompleted(streakExtended: boolean, streak: number): void {
     this.save.currency += ECONOMY.dailyMilestoneReward;
-    this.toasts.show('Daily mirror aligned', `+${ECONOMY.dailyMilestoneReward} Mirror Shards`, 'daily');
+    this.dailyStreakExtended = streakExtended;
+    this.view.callouts.show('DAILY COMPLETE', 'forge', streakExtended ? `${streak}-day streak` : 'past puzzle · streak unchanged');
+    this.audio.play('milestone');
+    this.audio.vibrate([8, 24, 12]);
+    this.toasts.show(streakExtended ? `Daily Mirror · ${streak}-day streak` : 'Daily Mirror complete', `+${ECONOMY.dailyMilestoneReward} Mirror Shards`, 'daily');
+    if (streakExtended) this.showUnlocks(this.achievements.evaluate({ type: 'daily', streak }));
+    this.queueSave();
   }
 
   private beginDaily(): void {
-    const today = utcDateKey();
     const daily = this.save.daily;
     this.save.stats.dailyPlays += 1;
-    if (daily.lastPlayedDate !== today) {
-      const yesterday = new Date(Date.parse(`${today}T12:00:00Z`) - 86_400_000);
-      daily.streak = daily.lastPlayedDate === utcDateKey(yesterday) ? daily.streak + 1 : 1;
-      daily.lastPlayedDate = today;
-      this.showUnlocks(this.achievements.evaluate({ type: 'daily', streak: daily.streak }));
-    }
-    if (daily.currentDate !== today) {
-      daily.currentDate = today;
-      daily.todayScore = 0;
-    }
+    daily.lastPlayedDate = utcDateKey();
+    this.view.setDailyTarget(0, DAILY_TARGET, isCompleted(daily, this.dailyDate));
     this.queueSave();
   }
 
@@ -1395,6 +1524,7 @@ export class Game {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (this.phase.isCinematic()) { this.cinematic.skip(); return; }
     if (event.key === 'r' || event.key === 'R') {
       if (!this.canInteract()) return;
       const target = this.lastTouchedPiece && this.tray.find(this.lastTouchedPiece) ? this.lastTouchedPiece : this.tray.list()[0]?.id;
@@ -1412,6 +1542,8 @@ export class Game {
 
   private readonly onResize = (): void => {
     this.view.relayout();
+    // The cinematic measured the board once; after a resize the results are the honest place to be.
+    if (this.phase.isCinematic()) this.cinematic.skip();
     if (this.resizeGateTimer !== null) window.clearTimeout(this.resizeGateTimer);
     this.clock.gate('resize', false);
     this.resizeGateTimer = window.setTimeout(() => { this.clock.gate('resize', true); this.resizeGateTimer = null; }, 350);

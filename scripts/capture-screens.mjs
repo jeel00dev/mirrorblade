@@ -17,7 +17,7 @@ const save = {
   stats: { bestScore: 12780, totalRuns: 41, totalScore: 190400, totalLinesCleared: 612, rowsCleared: 380, columnsCleared: 232, piecesPlaced: 2210, piecesRotated: 640, piecesCut: 96, bladesUsed: 96, bladesForged: 44, highestChain: 6, doubles: 88, triples: 21, maxClears: 3, perfectMirrors: 9, perfectClears: 2, overdrives: 17, overdriveSeconds: 170, fractures: 23, fractureEscapes: 15, clutches: 4, dailyPlays: 12, totalPlayTimeSeconds: 15900, highestStage: 4, longestRunMoves: 212, contractsCompleted: 9, precisionHits: 5 },
   ownedCosmetics: ['classic-spectrum', 'midnight', 'surgical-chrome', 'glass-shatter', 'soft-glow', 'studio-sound', 'frosted-glass', 'black-titanium'],
   achievements: ['first-reflection', 'first-cut', 'turned', 'double-vision', 'surgeon', 'hot-streak'],
-  daily: { streak: 3, bestDailyScore: 4120, currentDate: '2026-09-11', todayScore: 2100, lastPlayedDate: '2026-09-11' },
+  daily: { streak: 3, bestStreak: 5, lastStreakDate: new Date().toISOString().slice(0, 10), bestDailyScore: 4120, currentDate: new Date().toISOString().slice(0, 10), todayScore: 2100, lastPlayedDate: new Date().toISOString().slice(0, 10), scores: Object.fromEntries([0, 1, 2, 4, 5, 9, 11, 12].map((d) => [new Date(Date.now() - d * 86400000).toISOString().slice(0, 10), 900 + d * 40])) },
 };
 
 const populate = () => {
@@ -95,7 +95,11 @@ for (const [width, height] of viewports) {
   await click('[data-action="resume"]');
   await page.waitForTimeout(200);
   await page.evaluate(() => { const t = window.__MIRRORBLADE_TEST__; t.game['score']['score'] = 13410; t.game['refreshHUD'](); t.endRun(); });
-  await page.waitForTimeout(1300);
+  // shot() itself waits 420 ms, so the first frame lands on the strike (~420–490 ms) and the second mid-fall.
+  await shot('gameover-cinematic-slash');
+  await page.waitForTimeout(150);
+  await shot('gameover-cinematic-fall');
+  await page.waitForTimeout(1500);
   await shot('gameover');
   await page.close();
   console.log(`captured ${width}x${height}`);

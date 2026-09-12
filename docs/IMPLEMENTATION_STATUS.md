@@ -125,3 +125,38 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` implemented · `[!]` ext
 - [T] e2e: `scrollbar-width: thin` applied, fade toggles with scroll position
 - [T] `qa/v3/block-comparison.png`; tray-vs-board parity e2e still green
 - [T] Shop captured at 7 viewports incl. blades category; purchase/equip e2e green
+
+## V3.1 — Daily Mirror calendar (2026-09-12)
+
+- [T] Calendar month grid (Sunday-first, leap years, 4–6 week rows, padding), month navigation clamped to the current month (`game/DailyCalendar.ts`, `tests/daily-calendar.test.ts`)
+- [T] Per-date puzzle seeds and per-date best scores in the save (`daily.scores`, capped to 2,000 dates, validated on load)
+- [T] Completion = day target reached; first completion of any date pays shards once; only same-day completion extends the streak (`recordDailyRun`, `effectiveStreak`); best streak tracked
+- [T] Day states done / today / available / future with the shared depth tokens; selected ring; detail panel; streak card
+- [T] Daily target chip in the HUD; results show completion and streak outcome; Home shows "today done" or the streak
+- [T] E2E: past-day completion (done, +30, streak 0) then today's completion (streak 1, +30), replay does not double count
+
+## V3 — GAME OVER CINEMATIC (2026-09-12)
+
+Brief: replace the static game-over crack with a katana strike that ends the run. Research: `docs/game-over-animation-research.md`. System: `src/render/GameOverCinematic.ts` (own layer, explicit event timeline, pure timeline/physics), config `src/config/cinematic.ts`, styles `src/styles/cinematic.css`. `Game.ts` only commits the run, starts the sequence and answers its events.
+
+- [T] Run locked the instant game over is detected: explicit `CINEMATIC` phase (`core/GameState.ts`), `activeRun=false`, timers gated, navigation refused (a request is at most a skip), Escape/P/taps never open Pause or Home
+- [T] Explicit timeline `CINEMATIC_START → KATANA_ENTER → KATANA_SLASH_START → KATANA_IMPACT → BLOCKS_RELEASE → BLOCKS_FALL → BOARD_SETTLED → RESULTS_REVEAL → CINEMATIC_END`; every event reachable from the debug bridge (`state().cinematic.events`)
+- [T] Timing: anticipation 140 ms; enter 190 ms; slash 180 ms (+70 ms hit-stop at the axis); pop 240 ms ±10 %; stagger 0–150 ms along the diagonal; settle 1500; results 1700; end 2100 (inside the 1.8–2.7 s window)
+- [x] Katana enters from outside the board, tip leading along the diagonal, edge into the travel (sword rolled toward the environment lights so the steel reads); alternates TR→BL / TL→BR per run; exits through the opposite corner; the shared Three.js canvas is borrowed for the strike and handed back
+- [x] Cut line: 2 px metallic hairline drawn behind the tip, snap-flash at impact, 400 ms afterimage (cyan; gold on a new best; red on a fracture)
+- [x] Impact: hit-stop, axis flash, 3 px board recoil along the slash, 2 px camera impulse (honours the screen-shake setting), haptic
+- [T] Blocks: every occupied cell cloned into the layer (originals hidden), forward pop 1.10× (1.17× within 1.1 cells of the line, plus a few sparks), release staggered by projection onto the diagonal, gravity 38 cells/s², drift ≤ 0.4 cells/s, spin 35–125 °/s, connected cells of one piece cohere 140 ms then diverge; deterministic per run seed; hidden below the viewport; fade at settle
+- [x] Mirror axis flashes at impact and goes dark at settle; board stays
+- [x] Audio: music ducked to 25 % → `katana-enter` hiss → `katana-slash` (heavier slice + long whoosh) → `katana-impact` (low thump + crack) → one grouped `blocks-detach` → three restrained `block-thud`s → `mirror-end` glass tail; `best` cue at the results; music returns slowly
+- [x] HUD: controls, chips, tray, blade dock, hint bar and callouts step back in 140 ms; the score stays; crest glints on a new best
+- [x] Results overlay at RESULTS_REVEAL: staged card (score first, stats in order, buttons last, ≈480 ms total); new best gets a gold sheen sweep on the score
+- [x] Variants: new best (gold line, crest, sheen, cue); fracture timeout (axis unstable + 1 px tremor before the strike, jittered blade path, red line, edge shatter at impact)
+- [T] Responsive: geometry from the live board rect, katana 0.7× board diagonal (0.56× on phones, never wider than 90 % of the viewport), shorter approach on phones; verified 390×844, 844×390, 1280×800
+- [T] Performance: 81 clones with the transform on a cheap wrapper (style recalc 0.72 s → 0.10 s over the sequence, V3-006); median frame ≈ 20 ms in software-rendered headless Chromium at 1280×800 (idle gameplay 17 ms); layer, clones, timers and classes removed at the end or on cancel; twenty restarts leave nothing behind
+- [T] Skip after the strike (pointer, key, resize) fast-forwards to the results; refused before it
+- [T] Reduced motion: no katana travel, no clones — a static line flash, blocks dim and sink a third of a cell, results at 720 ms
+- [T] Guards: a second game over during the sequence is ignored; empty and full boards both complete; results, restart and Home work afterwards
+- [T] Tests: `tests/cinematic.test.ts` (14: timeline order and windows, geometry, path, pose, plan ranges, cohesion, determinism, phase machine) and `e2e/cinematic.spec.ts` (11)
+- [x] Captures: `qa/v3/gameover-cinematic-slash-*.png`, `qa/v3/gameover-cinematic-fall-*.png`, `qa/v3/gameover-*.png` at 7 viewports
+
+Definition of done, checked: run lock ✓ · katana enters/exits ✓ · slash reads ✓ · cut line ✓ · hit-stop ✓ · board recoil ✓ · pop + fall with rotation/cohesion ✓ · axis dies ✓ · audio layers ✓ · HUD fade with score kept ✓ · staged results ✓ · new-best and fracture variants ✓ · responsive ✓ · performance and cleanup ✓ · skip ✓ · reduced motion ✓ · docs and tests ✓. Not verifiable here: real-GPU frame time on a mid phone and a listening pass on the new sounds.

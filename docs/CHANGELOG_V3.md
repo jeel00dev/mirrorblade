@@ -47,3 +47,53 @@ Files: `src/game/{Piece,BladeCutter}.ts`, `src/render/blocks.ts`, `src/core/Game
 Reason: owner hit a T fragment (from a Plus) that refused to cut with a red mid-line. The one-generation rule was a V1 leftover with no balance purpose now that every cut costs a blade; removed. Single blocks get a hint instead of a red line.
 
 Validation: 74 unit; cut / rotate / tutorial / restart e2e.
+
+## 2026-09-12 02:30 IST — Shop scrolling on phones (V3-005)
+
+Files: `src/styles/screens.css`, `src/core/Game.ts`, `e2e/gameplay.spec.ts`.
+
+Reason: owner reported the Shop would not scroll on a phone. Root cause and fix in `BUGS.md` V3-005. Phones now scroll the whole catalog page with sticky category tabs; desktop keeps the fixed preview with a scrolling strip.
+
+Validation: lint; 21 e2e incl. a real touch-swipe test; build.
+
+## 2026-09-12 03:20 IST — Daily Mirror calendar (V3.1)
+
+Files (new): `src/game/DailyCalendar.ts`, `tests/daily-calendar.test.ts`. Changed: `src/progression/{SaveData,SaveCodec}.ts` (`daily.scores`, `lastStreakDate`, `bestStreak`), `src/core/Game.ts` (per-date runs, completion/reward/streak, month/select/play actions, daily HUD chip), `src/ui/screens/{InfoScreens,HomeScreen,context}.ts`, `src/ui/GameplayView.ts`, `src/styles/{screens,gameplay}.css`, `scripts/*.mjs` (sample data), `README.md`.
+
+Reason: owner asked for a chess.com-style daily puzzle calendar: full month view, each completed day marked, any past day playable, but past completions must not extend the continuous streak. Streak semantics changed from "played on consecutive days" to "completed on its own day on consecutive days"; existing `streak` values are kept and `bestStreak` seeds from them.
+
+Validation: 81 unit (7 new: month lengths incl. 2000/2100 leap rules, weekday alignment, 4- and 6-week months, year-boundary navigation, streak credit/reset/no-double-count, codec); 22 e2e incl. the full past-day → today flow; build; captured at 1366×768 and 390×844.
+
+## 2026-09-12 03:35 IST — Green completion tick on calendar days
+
+Files: `src/styles/screens.css`. Owner request: completed days carry a green tick badge (success green, raised, pops in) on the gold day pill.
+
+## 2026-09-12 03:55 IST — Streak flame on Home
+
+Files: `src/ui/Icons.ts` (flame glyph), `src/ui/components.ts` (`streakTier`, `streakBadge`), `src/ui/screens/{HomeScreen,InfoScreens}.ts`, `src/styles/{components,screens}.css`.
+
+Reason: owner request — show "X day streak" on the main screen with a flame whose colour escalates with the streak: grey (0), yellow (1–2), orange (3–6), red-orange (7–13), red (14–29), crimson with glow (30+); flicker from tier 2, off under reduced motion. Uses the icon family's flame, not an emoji. Same badge on the Daily streak card. Home records row now flexes to fit three pills on phones.
+
+Validation: lint; 81 unit; navigation / calendar / shop e2e; build.
+
+## 2026-09-12 04:10 IST — Streak badge moved onto the Daily Mirror button
+
+Files: `src/ui/screens/HomeScreen.ts`, `src/styles/screens.css`. Owner feedback: a third pill in the records row broke the symmetry. The records row is back to Best score + Mirror Shards; the tiered flame now sits as an inset badge at the trailing edge of the Daily Mirror button, where it belongs contextually.
+
+## 2026-09-12 04:30 IST — Streak badge carved into the Daily button; MIRRORBLADE flame glyph
+
+Files: `src/ui/Icons.ts`, `src/ui/screens/HomeScreen.ts`, `src/styles/screens.css`.
+
+Reason: owner feedback — the badge should move with the button on hover/press as if carved into it, and the flame should be unique to the game the way chess.com's carries a pawn. The badge is now a recessed pill inside the button (inset shadows, moves with the surface). The flame glyph carries a mirrored pair of blocks in its core with the axis line between them — the game's own mark in the fire. Tier colours unchanged.
+
+## 2026-09-12 04:45 IST — Calendar day cells use the icon-button face
+
+Files: `src/styles/screens.css`. Owner feedback: day cells now share the icon buttons' control face (lighter gradient, top highlight, rest/hover/pressed shadows, 12 px radius); future days are engraved on a darker face.
+
+## 2026-09-12 12:40 IST — Katana game-over cinematic
+
+Files: `src/render/GameOverCinematic.ts` (new), `src/config/cinematic.ts` (new), `src/styles/cinematic.css` (new), `src/core/GameState.ts` (`CINEMATIC` phase), `src/core/Game.ts` (`endRun` commits then plays; `onCinematicEvent`; skip on pointer/key/resize; navigation refused during the sequence), `src/render/BladeScene.ts` (`slash` pose, `setSlashPose`, ZYX roll), `src/render/BoardView.ts` (`occupiedBlocks`), `src/render/Ambience.ts` (`freeze`), `src/audio/AudioManager.ts` (six sounds, shaped whoosh, `setDucked`), `src/ui/GameplayView.ts` (`setCinematic`), `src/ui/screens/InfoScreens.ts` (staged results), `src/styles/states.css` (old crack line removed; `is-dead` is the reduced-motion end state), `scripts/qa-shot.mjs` (`--cinematic <ms>`), `scripts/capture-screens.mjs`, `e2e/cinematic.spec.ts`, `tests/cinematic.test.ts`, `docs/game-over-animation-research.md`.
+
+Reason: owner brief — the run should end with a decisive katana strike: lock, anticipation, fast diagonal slash with a hit-stop, blocks that pop and fall with rotation and group cohesion, the mirror going dark, then a staged results card; new-best and fracture variants; skip; reduced motion; phones. Built as a system with an explicit event timeline rather than an animation on the results card; `Game.ts` only commits the run and answers events.
+
+Validation: lint; 95 unit (14 new); 33 e2e (11 new: lock, order, alternation, skip rules, reduced motion, new best, fracture, double game over, empty/full boards, resize, three viewports); build 776 KB / 210 KB gz; frame-time and style-recalc measurements in headless Chromium (V3-006); captures at 1280×800, 390×844, 844×390 for tr-bl / tl-br / dense / fracture / reduced / new best.

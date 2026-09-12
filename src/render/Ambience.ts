@@ -41,6 +41,7 @@ export class Ambience {
   private density = 1;
   private reducedMotion = false;
   private enabled = true;
+  private frozen = false;
   private readonly observer: ResizeObserver;
   private readonly hoverCapable = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
 
@@ -68,6 +69,12 @@ export class Ambience {
     if (this.enabled) this.start(); else this.stop();
   }
 
+  /** The game-over cinematic holds the world still without hiding it. */
+  public freeze(frozen: boolean): void {
+    this.frozen = frozen;
+    if (frozen) this.stop(); else if (this.enabled) this.start();
+  }
+
   /** Strong clears make the world respond for a moment. */
   public pulse(strength: number): void {
     this.pulseLevel = Math.max(this.pulseLevel, Math.min(1, strength));
@@ -82,6 +89,7 @@ export class Ambience {
   }
 
   private start(): void {
+    if (this.frozen) return;
     if (this.frame === 0) {
       this.lastTime = performance.now();
       this.frame = requestAnimationFrame(this.tick);

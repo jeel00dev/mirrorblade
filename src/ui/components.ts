@@ -47,3 +47,19 @@ export function formatDuration(seconds: number): string {
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
 }
+
+/** Streak flame: colour and glow escalate with the streak length (yellow → orange → red → white-hot). */
+export function streakTier(streak: number): 0 | 1 | 2 | 3 | 4 | 5 {
+  if (streak <= 0) return 0;
+  if (streak < 3) return 1;
+  if (streak < 7) return 2;
+  if (streak < 14) return 3;
+  if (streak < 30) return 4;
+  return 5;
+}
+
+export function streakBadge(streak: number, options: { compact?: boolean } = {}): string {
+  const tier = streakTier(streak);
+  const label = streak === 1 ? 'day streak' : 'day streak';
+  return `<span class="streak-flame tier-${tier}${options.compact ? ' is-compact' : ''}" aria-label="${streak} day streak">${icon('flame')}<b class="num">${streak}</b>${options.compact ? '' : `<span>${label}</span>`}</span>`;
+}

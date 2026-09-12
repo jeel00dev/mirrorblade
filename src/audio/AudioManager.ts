@@ -6,7 +6,8 @@ export type SoundName =
   | 'clear' | 'double' | 'triple' | 'max' | 'perfect-mirror' | 'perfect-clear' | 'chain'
   | 'energy-milestone' | 'blade-forged' | 'overdrive-start' | 'overdrive-tick' | 'overdrive-end'
   | 'fracture-warn' | 'fracture-start' | 'fracture-tick' | 'clutch' | 'escape' | 'game-over' | 'best' | 'purchase' | 'equip'
-  | 'contract-offer' | 'contract-complete' | 'precision-spawn' | 'precision-hit' | 'milestone' | 'slice';
+  | 'contract-offer' | 'contract-complete' | 'precision-spawn' | 'precision-hit' | 'milestone' | 'slice'
+  | 'katana-enter' | 'katana-slash' | 'katana-impact' | 'blocks-detach' | 'block-thud' | 'mirror-end';
 
 export type MusicLayer = 'chain' | 'overdrive' | 'fracture' | 'tension' | 'pulse';
 
@@ -38,6 +39,7 @@ export class AudioManager {
   private activeLayers = new Set<MusicLayer>();
   private lastPlayed = new Map<SoundName, number>();
   private noiseBuffer: AudioBuffer | null = null;
+  private ducked = false;
   private intensity = 0;
   private chainDepth = 0;
 
@@ -61,13 +63,26 @@ export class AudioManager {
     this.lastPlayed.set(name, now);
     for (const tone of this.tonesFor(name)) this.tone(tone, now);
     if (name === 'cut' || name === 'slice') this.whoosh(now);
+    else if (name === 'katana-enter') this.whoosh(now, { from: 1800, to: 900, duration: 0.26, level: 0.03 });
+    else if (name === 'katana-slash') this.whoosh(now, { from: 2200, to: 320, duration: 0.3, level: 0.09 });
+    else if (name === 'katana-impact') this.whoosh(now, { from: 900, to: 140, duration: 0.22, level: 0.07 });
   }
 
-  /** Short band-passed noise burst: the air moving around the katana. */
-  private whoosh(now: number): void {
+  /**
+   * Music duck for the game-over cinematic: the layers drop to a quarter at once and come back slowly so the
+   * results land in near-silence.
+   */
+  public setDucked(ducked: boolean): void {
+    this.ducked = ducked;
+    if (!this.musicGain || !this.context) return;
+    this.musicGain.gain.setTargetAtTime(this.settings.musicVolume * 0.16 * (ducked ? 0.25 : 1), this.context.currentTime, ducked ? 0.08 : 0.9);
+  }
+
+  /** Band-passed noise burst: the air moving around the katana. Defaults are the short cut whoosh. */
+  private whoosh(now: number, shape: { from: number; to: number; duration: number; level: number } = { from: 2600, to: 700, duration: 0.18, level: 0.05 }): void {
     const context = this.context!;
     if (!this.noiseBuffer) {
-      const length = Math.floor(context.sampleRate * 0.25);
+      const length = Math.floor(context.sampleRate * 0.4);
       const buffer = context.createBuffer(1, length, context.sampleRate);
       const data = buffer.getChannelData(0);
       for (let index = 0; index < length; index += 1) data[index] = (Math.random() * 2 - 1) * (1 - index / length);
@@ -77,16 +92,16 @@ export class AudioManager {
     source.buffer = this.noiseBuffer;
     const filter = context.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(2600, now);
-    filter.frequency.exponentialRampToValueAtTime(700, now + 0.18);
+    filter.frequency.setValueAtTime(shape.from, now);
+    filter.frequency.exponentialRampToValueAtTime(shape.to, now + shape.duration);
     filter.Q.value = 0.9;
     const gain = context.createGain();
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+    gain.gain.exponentialRampToValueAtTime(shape.level, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + shape.duration + 0.02);
     source.connect(filter).connect(gain).connect(this.sfxGain!);
     source.start(now);
-    source.stop(now + 0.22);
+    source.stop(now + shape.duration + 0.05);
   }
 
   public setLayer(layer: MusicLayer, active: boolean): void {
@@ -116,7 +131,7 @@ export class AudioManager {
     if (!this.master || !this.musicGain || !this.sfxGain || !this.context) return;
     const now = this.context.currentTime;
     this.master.gain.setTargetAtTime(this.settings.muted || this.platformMuted ? 0 : this.settings.masterVolume * 0.9, now, 0.03);
-    this.musicGain.gain.setTargetAtTime(this.settings.musicVolume * 0.16, now, 0.05);
+    this.musicGain.gain.setTargetAtTime(this.settings.musicVolume * 0.16 * (this.ducked ? 0.25 : 1), now, 0.05);
     this.sfxGain.gain.setTargetAtTime(this.settings.soundVolume, now, 0.03);
   }
 
@@ -200,6 +215,13 @@ export class AudioManager {
       case 'precision-hit': return [{ f: 1180, end: 1760, d: 0.2, v: 0.05, type: t.sparkle }, { f: 2350, d: 0.3, v: 0.03, delay: 0.08, type: t.sparkle }];
       case 'milestone': return [{ f: 330, end: 660, d: 0.4, v: 0.07 }, { f: 495, end: 990, d: 0.45, v: 0.05, delay: 0.1 }, { f: 1320, d: 0.5, v: 0.03, delay: 0.25, type: t.sparkle }];
       case 'slice': return [{ f: 1800, end: 300, d: 0.14, v: 0.06, type: 'sawtooth' }, { f: 3200, end: 2200, d: 0.08, v: 0.03, type: t.sparkle, delay: 0.01 }];
+      // Game-over cinematic (docs/game-over-animation-research.md): enter hiss, heavy slice, low impact, grouped detach, restrained thuds, glass tail.
+      case 'katana-enter': return [{ f: 2400, end: 3000, d: 0.18, v: 0.02, type: t.sparkle }];
+      case 'katana-slash': return [{ f: 2200, end: 260, d: 0.22, v: 0.08, type: 'sawtooth' }, { f: 3600, end: 2400, d: 0.1, v: 0.035, type: t.sparkle, delay: 0.01 }];
+      case 'katana-impact': return [{ f: 96, end: 38, d: 0.34, v: 0.16, type: t.impact }, { f: 1400, end: 900, d: 0.07, v: 0.035, type: 'square', delay: 0.005 }, { f: 620, end: 420, d: 0.18, v: 0.05, delay: 0.02 }];
+      case 'blocks-detach': return [{ f: 820, end: 640, d: 0.05, v: 0.035, type: t.sparkle }, { f: 1040, end: 760, d: 0.05, v: 0.03, type: t.sparkle, delay: 0.035 }, { f: 700, end: 520, d: 0.06, v: 0.03, type: t.sparkle, delay: 0.08 }];
+      case 'block-thud': return [{ f: 130, end: 78, d: 0.1, v: 0.05, type: t.impact }];
+      case 'mirror-end': return [{ f: 220, end: 165, d: 0.9, v: 0.06 }, { f: 330, end: 247, d: 0.8, v: 0.03, delay: 0.04 }, { f: 110, end: 82, d: 1.1, v: 0.04, delay: 0.08 }];
       default: return [];
     }
   }

@@ -1,0 +1,104 @@
+/*
+ * Game-over katana cinematic (src/render/GameOverCinematic.ts, docs/game-over-animation-research.md).
+ * A fixed layer above the gameplay screen and below overlays holds block clones, the cut line and the katana canvas.
+ */
+.cinematic-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+  --cut-core: rgba(255, 255, 255, 0.95);
+  --cut-glow: rgba(158, 249, 242, 0.75);
+  --cut-after: rgba(67, 194, 199, 0.55);
+}
+.cinematic-layer.is-best { --cut-glow: rgba(245, 197, 108, 0.85); --cut-after: rgba(236, 180, 85, 0.6); }
+.cinematic-layer.is-fracture { --cut-glow: rgba(240, 170, 165, 0.8); --cut-after: rgba(234, 125, 120, 0.55); }
+
+/* Block clones sit exactly on the originals, then pop and fall. The wrapper carries the transform; the block inside
+ * keeps its normal material rules and is never restyled while it moves. */
+.cine-blocks { position: absolute; inset: 0; }
+.cine-block {
+  position: absolute;
+  transform-origin: center;
+  will-change: transform;
+  transition: filter 180ms var(--ease-out), opacity 220ms var(--ease-in-out);
+}
+.cine-block.is-popped { filter: brightness(1.18) saturate(1.08); z-index: 2; }
+.cine-block.is-popped.is-near { filter: brightness(1.35) saturate(1.1); z-index: 3; }
+.cine-block.is-fading { opacity: 0; }
+.board.is-cinematic .blk { visibility: hidden; }
+
+/* Cut line: a metallic hairline following the blade, with a short coloured afterimage. */
+.cine-cut {
+  position: absolute;
+  height: 2px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, var(--cut-core) 6%, var(--cut-core) 94%, rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 0 6px var(--cut-glow), 0 0 18px var(--cut-after), 0 0 1px rgba(255, 255, 255, 0.9);
+  opacity: 1;
+}
+.cine-cut::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
+  background: linear-gradient(90deg, transparent, var(--cut-after) 15%, var(--cut-after) 85%, transparent);
+  filter: blur(4px);
+  opacity: 0.6;
+}
+.cine-cut.is-struck { animation: cine-cut-flash 220ms var(--ease-out); }
+.cine-cut.is-fading { opacity: 0; transition: opacity 400ms var(--ease-in-out); }
+.cinematic-layer.is-best .cine-cut.is-struck { animation: cine-cut-flash 220ms var(--ease-out), cine-cut-gold 700ms var(--ease-out) 120ms; }
+@keyframes cine-cut-flash { 0% { filter: brightness(2.2); height: 3px; } 100% { filter: brightness(1); height: 2px; } }
+@keyframes cine-cut-gold { 0% { box-shadow: 0 0 6px var(--cut-glow), 0 0 18px var(--cut-after); } 45% { box-shadow: 0 0 14px rgba(245, 197, 108, 1), 0 0 40px rgba(236, 180, 85, 0.8); } 100% { box-shadow: 0 0 6px var(--cut-glow), 0 0 18px var(--cut-after); } }
+
+/* Katana: the shared blade canvas re-parented into a square that the timeline moves along the diagonal. */
+.cine-katana {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  will-change: transform;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+.cine-katana.is-visible { opacity: 1; }
+.cine-katana .blade-canvas { display: block; }
+
+/* Board response: recoil along the slash, mirror axis flash, then the mirror goes dark. */
+.board.is-recoil { animation: cine-recoil 180ms var(--ease-out); }
+@keyframes cine-recoil { 0% { transform: translate(0, 0); } 30% { transform: translate(var(--recoil-x, 0px), var(--recoil-y, 3px)); } 100% { transform: translate(0, 0); } }
+.board.is-mirror-dead .cell.is-axis::before { filter: brightness(0.35) saturate(0.4); transition: filter 320ms var(--ease-in-out); }
+.board.is-mirror-dead .blk { visibility: hidden; }
+/* Fracture variant: the axis is unstable before the strike. */
+.board.is-unstable .cell.is-axis::before { animation: cine-unstable 160ms steps(2, end) infinite; }
+.board.is-unstable { animation: cine-tremor 90ms linear infinite; }
+@keyframes cine-unstable { 0% { filter: brightness(1.5); } 100% { filter: brightness(0.75); } }
+@keyframes cine-tremor { 0% { transform: translate(0, 0); } 50% { transform: translate(0.6px, -0.4px); } 100% { transform: translate(-0.5px, 0.3px); } }
+
+/* HUD: secondary elements step back; the score stays. */
+.screen-gameplay.is-cinematic .hud-controls,
+.screen-gameplay.is-cinematic .hud-status,
+.screen-gameplay.is-cinematic .tray,
+.screen-gameplay.is-cinematic .blade-zone,
+.screen-gameplay.is-cinematic .hint-bar,
+.screen-gameplay.is-cinematic .callout-host { opacity: 0; pointer-events: none; transition: opacity 140ms var(--ease-in-out); }
+.screen-gameplay.is-cinematic .hud-score { transition: transform 320ms var(--ease-out); }
+.screen-gameplay.is-new-best .hud-score .crest { animation: crest-glint var(--t-major) var(--ease-out); color: var(--accent); }
+
+/* Results overlay after the cinematic: the card settles in, then its rows follow in order, buttons last.
+ * (Reduced motion never stages the card; the global reduced-motion rule in states.css shortens everything else.) */
+.results.is-staged { animation-duration: var(--t-standard); }
+.results.is-staged > * { opacity: 0; animation: results-item 260ms var(--ease-out) forwards; }
+.results.is-staged > :nth-child(1) { animation-delay: 0ms; }
+.results.is-staged > :nth-child(2) { animation-delay: 40ms; }
+.results.is-staged > :nth-child(3) { animation-delay: 60ms; animation-duration: 320ms; }
+.results.is-staged > :nth-child(4) { animation-delay: 110ms; }
+.results.is-staged > :nth-child(5) { animation-delay: 140ms; }
+.results.is-staged > :nth-child(6) { animation-delay: 170ms; }
+.results.is-staged > :nth-child(7) { animation-delay: 200ms; }
+.results.is-staged > :nth-child(8) { animation-delay: 220ms; }
+.results.is-staged > .actions { animation-delay: 230ms; }
+.results.is-staged .final-score.is-best { background: linear-gradient(100deg, var(--accent-strong) 0%, #fff3d6 45%, var(--accent-strong) 55%, var(--accent) 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: results-item 320ms var(--ease-out) 60ms forwards, best-sheen 1.4s var(--ease-in-out) 420ms; }
+@keyframes results-item { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes best-sheen { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }

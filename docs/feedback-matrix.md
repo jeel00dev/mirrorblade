@@ -50,4 +50,9 @@ Audio is synthesized locally, no autoplay before a gesture. All mode layers pass
 | Mirror Stress ≥0.4 | axis dims and cools | tension drone fades in at ≥0.65 | 0 | stress chip at ≥0.65 | — | fixed | while stalled |
 | Katana cut (V3) | 200ms slash swing, sparks, fragments arrive | slice + air whoosh | 7,16,9 | count −1 | — | fixed | 300ms |
 | Home → Play | katana travels hero → dock, diagonal cut-line reveal | slice | 0 | — | — | fixed | 620ms |
-| Game over (V3) | axis crack + katana crack line across the board, blocks desaturate | low glass fall | 10 | results | — | fixed | 900ms |
+| Game over (V3 cinematic) | run locks, HUD steps back, katana enters and slashes the diagonal (alternates per run), hit-stop, cut line, board recoil, blocks pop then fall with spin and group cohesion, axis dies, staged results | music duck → enter hiss → slice + whoosh → low impact → grouped detach → 3 thuds → glass tail | 14/30/8 at impact | score stays; results at 1.7 s | — | 2px impulse + 3px recoil | 2.1 s (skip after the strike) |
+| Game over — new best | gold cut line, HUD crest glint, gold sheen on the results score | + warm chime at the results | 14/30/8 | NEW BEST | end payout once | as above | as above |
+| Game over — fracture | axis unstable + tremor before the strike, jittered blade, red line, edge shatter | as above | 14/30/8 | The mirror fractured | — | as above | as above |
+| Game over — reduced motion | static line flash, blocks dim and sink a third of a cell, axis dark | low glass fall | 10 | results at 0.7 s | — | fixed | 0.9 s |
+| Daily target reached | DAILY COMPLETE callout, daily chip turns gold "Done" | milestone triad | 8,24,12 | chip | +30 shards once per date | fixed | 720ms |
+| Daily streak extended | callout sub "N-day streak", toast | — | — | Home shows streak | — | fixed | — |

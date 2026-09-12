@@ -52,3 +52,13 @@ V1 draws tray pieces in CSS and board blocks in a Three.js WebGL scene that sits
 **Still needs a human / device:** real-GPU look of the katana (hamon, reflections) and frame time on a mid phone; listening pass on the new audio layers; the feel questions in `balance-report-v3.md` §Playtest.
 
 **Where to tune:** `src/config/difficulty.ts` (curve, piece weights, stress, contract/precision cadence), `src/config/blade.ts` (recharge), then `npm run simulate`.
+
+---
+
+## 2026-09-12 12:40 IST — Claude: katana game-over cinematic
+
+**Done:** `docs/game-over-animation-research.md` → `src/render/GameOverCinematic.ts` with an explicit event timeline (`CINEMATIC_START … CINEMATIC_END`), a `CINEMATIC` run phase, `src/config/cinematic.ts` for every timing, `src/styles/cinematic.css`; `Game.endRun` commits the run and answers events (audio duck + six new sounds, HUD fade, phase → OVER at `RESULTS_REVEAL`, staged results card). New-best and fracture variants, skip after the strike, reduced-motion path, phones. Ledger section "V3 — GAME OVER CINEMATIC", CHANGELOG, BUGS V3-006/007. 95 unit, 33 e2e, build green.
+
+**Tune here:** `src/config/cinematic.ts` (timings, pop, gravity, spin, katana scale). Debug: `__MIRRORBLADE_TEST__.endRun('fracture')`, `.skipCinematic()`, `.state().cinematic`. One-off capture: `node scripts/qa-shot.mjs 1280 800 out.png --cinematic 450`.
+
+**Still needs a device:** the strike at 60 fps on a mid phone (headless software rendering sits at ≈20 ms/frame with 81 clones after V3-006) and a listening pass on `katana-*`, `blocks-detach`, `block-thud`, `mirror-end`.

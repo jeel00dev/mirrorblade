@@ -8,6 +8,8 @@ export interface ScreenContext {
   readonly activeRun: boolean;
   readonly runScore: number;
   readonly shop: { category: CosmeticCategory; selected: string | null; revealing: string | null };
+  readonly dailyView: { year: number; month: number; selected: string };
+  readonly today: string;
 }
 
 export function element(html: string): HTMLElement {

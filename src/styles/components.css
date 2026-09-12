@@ -314,3 +314,22 @@ body[data-screen="gameplay"] .toast-rail { top: calc(var(--safe-top) + 76px); }
 @keyframes callout-sheen { 0% { background-position: 120% 0; } 100% { background-position: -40% 0; } }
 @keyframes callout-sub { 0% { opacity: 0; letter-spacing: 0.5em; } 100% { opacity: 1; letter-spacing: 0.28em; } }
 @keyframes axis-line-flash { 0% { opacity: 0; transform: translateX(-50%) scaleY(0.2); } 30% { opacity: 1; transform: translateX(-50%) scaleY(1); } 100% { opacity: 0; } }
+
+/* ---------- Streak flame ---------- */
+.streak-flame { display: inline-flex; align-items: center; gap: 8px; --flame: #9a9ea6; --flame-glow: transparent; --flame-core: rgba(255, 255, 255, 0.55); }
+.streak-flame .icon { width: 28px; height: 28px; color: var(--flame); filter: drop-shadow(0 0 6px var(--flame-glow)); transform-origin: 50% 90%; }
+.streak-flame b { font-size: 26px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.streak-flame > span { font-size: var(--fs-caption); color: var(--text-muted); font-weight: 600; }
+.streak-flame.is-compact .icon { width: 22px; height: 22px; }
+.streak-flame.is-compact b { font-size: clamp(20px, 2.6vw, 26px); }
+.streak-flame.tier-0 { --flame: #6d727b; --flame-core: rgba(255, 255, 255, 0.25); }
+.streak-flame.tier-1 { --flame: #f2c14e; --flame-glow: rgba(242, 193, 78, 0.35); }
+.streak-flame.tier-2 { --flame: #ff9a3c; --flame-glow: rgba(255, 154, 60, 0.45); }
+.streak-flame.tier-3 { --flame: #ff6a3d; --flame-glow: rgba(255, 106, 61, 0.55); --flame-core: #ffe0a8; }
+.streak-flame.tier-4 { --flame: #f0413a; --flame-glow: rgba(240, 65, 58, 0.65); --flame-core: #ffd2a0; }
+.streak-flame.tier-5 { --flame: #e02a3c; --flame-glow: rgba(224, 42, 60, 0.8); --flame-core: #fff4dc; }
+.streak-flame.tier-2 .icon, .streak-flame.tier-3 .icon, .streak-flame.tier-4 .icon, .streak-flame.tier-5 .icon { animation: flame-flicker 2.2s var(--ease-in-out) infinite; }
+.streak-flame.tier-4 .icon, .streak-flame.tier-5 .icon { animation-duration: 1.4s; }
+.streak-flame.tier-5 .icon { filter: drop-shadow(0 0 8px var(--flame-glow)) drop-shadow(0 0 18px rgba(255, 120, 80, 0.35)); }
+@keyframes flame-flicker { 0%, 100% { transform: scale(1) rotate(0); } 30% { transform: scale(1.06, 0.96) rotate(-2deg); } 55% { transform: scale(0.97, 1.05) rotate(1.5deg); } 80% { transform: scale(1.03) rotate(-1deg); } }
+body.reduced-motion .streak-flame .icon { animation: none !important; }

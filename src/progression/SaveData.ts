@@ -52,11 +52,18 @@ export interface PlayerStats {
 
 export interface DailyProgress {
   lastPlayedDate: string;
+  /** Kept for V2 saves; rewards are now per completed date (see `scores`). */
   lastRewardDate: string;
   currentDate: string;
   todayScore: number;
   bestDailyScore: number;
+  /** Consecutive days completed on their own date. */
   streak: number;
+  /** Last date credited to the streak (UTC key). */
+  lastStreakDate: string;
+  bestStreak: number;
+  /** Best score per puzzle date (UTC key). A date is complete at DAILY_REWARD_SCORE. */
+  scores: Record<string, number>;
 }
 
 export interface SaveData {
@@ -136,6 +143,9 @@ export function createDefaultSave(): SaveData {
       todayScore: 0,
       bestDailyScore: 0,
       streak: 0,
+      lastStreakDate: '',
+      bestStreak: 0,
+      scores: {},
     },
   };
 }

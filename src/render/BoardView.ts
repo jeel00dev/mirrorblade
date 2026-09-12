@@ -59,6 +59,19 @@ export class BoardView {
     }
   }
 
+  /** Every rendered block with its model cell — the game-over cinematic clones these into its own layer. */
+  public occupiedBlocks(): { cell: GridCell; element: HTMLElement; model: BoardCell }[] {
+    const result: { cell: GridCell; element: HTMLElement; model: BoardCell }[] = [];
+    for (let index = 0; index < this.blocks.length; index += 1) {
+      const element = this.blocks[index];
+      const row = Math.floor(index / BOARD_SIZE);
+      const col = index % BOARD_SIZE;
+      const model = this.snapshot[row]?.[col] ?? null;
+      if (element && model) result.push({ cell: { row, col }, element, model });
+    }
+    return result;
+  }
+
   public currentSnapshot(): readonly (readonly (BoardCell | null)[])[] {
     return this.snapshot;
   }

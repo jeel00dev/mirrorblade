@@ -1,11 +1,14 @@
 import { pieceMarkup } from '../../render/blocks';
-import { button, shardsPill, wordmark } from '../components';
+import { effectiveStreak, isCompleted } from '../../game/DailyCalendar';
+import { button, shardsPill, streakBadge, wordmark } from '../components';
 import { icon, iconButton } from '../Icons';
 import { element, type ScreenContext } from './context';
 
 export function buildHomeScreen(ctx: ScreenContext): HTMLElement {
   const best = ctx.save.stats.bestScore;
   const daily = ctx.save.daily;
+  const streak = effectiveStreak(daily, ctx.today);
+  const dailyDone = isCompleted(daily, ctx.today);
   const heroPieces = [
     pieceMarkup({ cells: [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }], tone: 'cyan' }),
     pieceMarkup({ cells: [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }], tone: 'cyan' }),
@@ -29,7 +32,7 @@ export function buildHomeScreen(ctx: ScreenContext): HTMLElement {
         ${ctx.activeRun
           ? button('Continue run', 'resume', { variant: 'primary', icon: 'play' }) + button('New run', 'quick-play', { variant: 'secondary', icon: 'restart' })
           : button('Play', 'quick-play', { variant: 'primary', icon: 'play' })}
-        ${button(`Daily Mirror${daily.streak > 0 ? `<small>${daily.streak} day streak</small>` : ''}`, 'daily', { variant: 'secondary', icon: 'daily' })}
+        <button type="button" class="btn btn-secondary btn-daily" data-action="daily">${icon('daily')}<span>Daily Mirror${dailyDone ? '<small class="done">✓ today done</small>' : ''}</span>${streakBadge(streak, { compact: true })}</button>
       </div>
       <nav class="home-nav" aria-label="Menu">
         <button type="button" class="nav-item" data-action="shop">${icon('shop')}<span>Shop</span></button>

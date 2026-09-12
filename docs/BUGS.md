@@ -59,3 +59,15 @@ Severity: low (tooling). Status: NOTED 2026-09-12. `pgrep -f "simulate-runs"` ma
 ## V3-004 — T-shaped fragment could not be cut; red mid-line implied a bad seam
 
 Severity: high (owner-reported). Status: FIXED 2026-09-12. Reproduction: cut a Plus horizontally, drag the resulting T fragment over the katana. Expected: the T splits (it has three valid seams in every rotation). Actual: V1's "one cut generation" rule returned no seams for any fragment, and the fallback guide drew a red line through the middle, which read as "this seam is invalid". Fix: `BladeCutter` now cuts any piece with ≥ 2 cells whose halves stay connected; `cutGeneration` counts cuts instead of capping at 1; the only uncuttable piece is a single block, which now gets an explicit hint. Guide and README copy updated. Test: `tests/cutter.test.ts` (re-cut generation, Plus→T fragment in all rotations); cut / rotate / tutorial / restart e2e.
+
+## V3-005 — Shop / Collection could not scroll on phones
+
+Severity: high (owner-reported). Status: FIXED 2026-09-12. Reproduction: open the Shop on a phone (390×664 viewport), swipe. Expected: the item list scrolls. Actual: nothing scrolled — `.screen-body` was `overflow: hidden` with an auto-sized grid row, so the catalog grew past the body (773 px in 564 px) and the item strip sat below the clip line; the strip itself had no overflow to scroll. Desktop hid it because the content fit. Fix: the body row is now `minmax(0, 1fr)` (so the strip is a real scroller on desktop), and at ≤ 640 px the whole shop page scrolls with the category tabs pinned; selecting an item scrolls the preview back into view. Test: e2e 'the shop scrolls with a touch swipe on a phone' (CDP touch, iPhone-sized context).
+
+## V3-006 — Transforming 81 block clones directly cost ~12 ms of style recalc per frame
+
+Severity: medium (performance). Status: FIXED 2026-09-12. Reproduction: first cinematic build, full board, headless Chromium `Performance.getMetrics`. Expected: the fall is composite-only. Actual: writing `style.transform` on each `.blk` clone invalidated the block's own computed style — seven `color-mix()` inset shadows plus two pseudo-elements — every frame: 0.72 s of `RecalcStyleDuration` over a 1.5 s sequence, median frame 43–55 ms. Fix: each clone sits in a plain wrapper that carries the transform, filter and opacity; the block inside is never restyled while it moves. After: 0.10 s recalc, median frame ≈ 20 ms in software rendering. Test: `scripts/_cineperf.mjs` / `scripts/_cinemetrics.mjs` (scratch, not committed); e2e 'twenty restarts…' asserts no clones remain.
+
+## V3-007 — Twenty-restart e2e would exceed its timeout with the full cinematic
+
+Severity: low (tooling). Status: FIXED 2026-09-12. Twenty full sequences take ~45 s. The test now skips each sequence as soon as the strike lands (`skipCinematic()`), which also exercises skip cleanup, and its timeout is 120 s.

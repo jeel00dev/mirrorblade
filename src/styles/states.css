@@ -37,24 +37,12 @@ body.state-fracture .fracture-edges { opacity: 0.9; }
 body.state-fracture-final .fracture-edges svg { color: rgba(240, 170, 165, 0.7); }
 .fracture-edges.is-shattering svg { animation: edge-shatter var(--t-major) var(--ease-out) forwards; }
 
-/* ---------- Game over on the board ---------- */
-.board.is-dead .blk { filter: saturate(0.35) brightness(0.6); transition: filter var(--t-major) var(--ease-in-out); }
+/* ---------- Game over on the board ----------
+ * Full motion is the katana cinematic (cinematic.css). is-dead is the reduced-motion end state and the resting
+ * look under the results overlay: blocks desaturate and sink a third of a cell, the axis goes dark.
+ */
+.board.is-dead .blk { filter: saturate(0.35) brightness(0.6); transform: translateY(calc(var(--cell) * 0.33)); opacity: 0.55; transition: filter var(--t-major) var(--ease-in-out), transform var(--t-major) var(--ease-in-out), opacity var(--t-major) var(--ease-in-out); }
 .board.is-dead .cell.is-axis::before { animation: axis-crack var(--t-major) var(--ease-out) forwards; }
-/* The glass fractures along a katana line */
-.board.is-dead::after {
-  content: "";
-  position: absolute;
-  left: 50%; top: 50%;
-  width: 150%; height: 2px;
-  transform: translate(-50%, -50%) rotate(-38deg) scaleX(0);
-  transform-origin: center;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85) 20%, rgba(255, 255, 255, 0.85) 80%, transparent);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
-  animation: dead-cut 900ms var(--ease-out) 120ms forwards;
-  pointer-events: none;
-  z-index: 6;
-}
-@keyframes dead-cut { 0% { transform: translate(-50%, -50%) rotate(-38deg) scaleX(0); opacity: 1; } 40% { transform: translate(-50%, -50%) rotate(-38deg) scaleX(1); opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(-38deg) scaleX(1); opacity: 0.25; } }
 
 /* ---------- Home → Play cut reveal ---------- */
 .cut-reveal {

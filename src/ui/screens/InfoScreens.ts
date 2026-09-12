@@ -1,32 +1,66 @@
-import { DAILY_REWARD_SCORE } from '../../config/gameplay';
-import { ECONOMY } from '../../config/economy';
-import { formatDailyDate, utcDateKey } from '../../game/DailyMode';
+import { formatDailyDate } from '../../game/DailyMode';
+import { buildMonth, DAILY_TARGET, effectiveStreak, isCompleted } from '../../game/DailyCalendar';
 import { pieceMarkup } from '../../render/blocks';
 import { ACHIEVEMENTS } from '../../progression/AchievementSystem';
-import { button, formatDuration, screenHead, shardsPill } from '../components';
+import { button, formatDuration, screenHead, shardsPill, streakBadge } from '../components';
 import { icon } from '../Icons';
 import { element, type ScreenContext } from './context';
 
 export function buildDailyScreen(ctx: ScreenContext): HTMLElement {
-  const today = utcDateKey();
   const daily = ctx.save.daily;
-  const playedToday = daily.currentDate === today && daily.todayScore > 0;
+  const today = ctx.today;
+  const month = buildMonth(ctx.dailyView.year, ctx.dailyView.month, today, daily);
+  const selectedKey = ctx.dailyView.selected;
+  const selectedScore = daily.scores[selectedKey] ?? 0;
+  const selectedDone = isCompleted(daily, selectedKey);
+  const selectedIsToday = selectedKey === today;
+  const selectedFuture = selectedKey > today;
+  const streak = effectiveStreak(daily, today);
+  const totalDone = Object.values(daily.scores).filter((score) => score >= DAILY_TARGET).length;
+  const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const grid = month.weeks.map((week) => week.map((cell) => {
+    if (!cell) return '<span class="cal-pad" aria-hidden="true"></span>';
+    const classes = ['cal-day', `is-${cell.state}`, cell.key === selectedKey ? 'is-selected' : '', cell.isToday ? 'is-today' : ''].filter(Boolean).join(' ');
+    const label = `${cell.day} ${month.label}${cell.state === 'done' ? ', completed' : cell.state === 'future' ? ', locked' : cell.isToday ? ', today' : ''}`;
+    return `<button type="button" class="${classes}" data-action="daily-select" data-value="${cell.key}" aria-label="${label}" aria-pressed="${cell.key === selectedKey}"${cell.state === 'future' ? ' disabled' : ''}><span class="num">${cell.day}</span>${cell.state === 'done' ? `<span class="mark">${icon('confirm')}</span>` : ''}</button>`;
+  }).join('')).join('');
+  const status = selectedFuture ? 'Locked until its day'
+    : selectedDone ? `Completed · best ${selectedScore.toLocaleString()}`
+      : selectedScore > 0 ? `Best ${selectedScore.toLocaleString()} · target ${DAILY_TARGET.toLocaleString()}`
+        : `Target ${DAILY_TARGET.toLocaleString()}`;
+  const playLabel = selectedFuture ? 'Not available yet' : selectedDone ? 'Replay this puzzle' : selectedIsToday ? "Play today's mirror" : 'Play this puzzle';
+  const note = selectedFuture ? 'Puzzles unlock on their own day (UTC).'
+    : selectedIsToday ? 'Complete today\'s puzzle to extend your streak.'
+      : 'Past puzzles count as complete and pay shards, but do not extend your streak.';
   return element(`
     <section aria-label="Daily Mirror">
       ${screenHead('Daily Mirror', 'home', shardsPill(ctx.save.currency))}
-      <div class="screen-body narrow">
-        <div class="panel daily-hero">
-          <span class="t-caption">Today, in every mirror</span>
-          <div class="date">${formatDailyDate(today)}</div>
-          <span class="streak">${icon('daily')}${daily.streak > 0 ? `${daily.streak}-day streak` : 'Start a streak'}</span>
+      <div class="screen-body">
+        <div class="daily-layout">
+          <div class="panel calendar" role="group" aria-label="${month.label}">
+            <div class="cal-head">
+              <button type="button" class="icon-button cal-nav" data-action="daily-month" data-value="prev" aria-label="Previous month">${icon('back')}</button>
+              <h2>${month.label}</h2>
+              <button type="button" class="icon-button cal-nav cal-next" data-action="daily-month" data-value="next" aria-label="Next month"${month.canGoForward ? '' : ' disabled'}>${icon('back')}</button>
+            </div>
+            <div class="cal-weekdays" aria-hidden="true">${weekdays.map((day) => `<span>${day}</span>`).join('')}</div>
+            <div class="cal-grid">${grid}</div>
+            <div class="cal-foot"><span>${month.completed} of ${month.daysInMonth} completed this month</span></div>
+          </div>
+          <div class="daily-side">
+            <div class="panel streak-card">
+              <div class="streak-main">${streakBadge(streak)}</div>
+              <div class="streak-meta"><span>Best streak <b class="num">${daily.bestStreak}</b></span><span>Completed <b class="num">${totalDone}</b></span><span>Daily best <b class="num">${daily.bestDailyScore.toLocaleString()}</b></span></div>
+            </div>
+            <div class="panel day-detail ${selectedDone ? 'is-done' : ''}">
+              <span class="t-caption">${selectedIsToday ? 'Today' : selectedFuture ? 'Upcoming' : 'Past puzzle'}</span>
+              <h2>${formatDailyDate(selectedKey)}</h2>
+              <div class="day-status">${icon(selectedDone ? 'owned' : selectedFuture ? 'lock' : 'daily')}<span>${status}</span></div>
+              <p class="t-body">${note}</p>
+              ${button(playLabel, 'daily-play', { variant: selectedDone ? 'secondary' : 'primary', icon: 'play', value: selectedKey, disabled: selectedFuture, block: true })}
+            </div>
+          </div>
         </div>
-        <div class="daily-records">
-          <div><span>Today</span><strong class="num">${(daily.currentDate === today ? daily.todayScore : 0).toLocaleString()}</strong></div>
-          <div><span>Daily best</span><strong class="num">${daily.bestDailyScore.toLocaleString()}</strong></div>
-          <div><span>Plays</span><strong class="num">${ctx.save.stats.dailyPlays.toLocaleString()}</strong></div>
-        </div>
-        <p class="daily-rules">Everyone gets the same piece sequence for the day. Reach ${DAILY_REWARD_SCORE.toLocaleString()} for +${ECONOMY.dailyMilestoneReward} Mirror Shards, once per day. Rotation, blades, Overdrive and Fracture all apply.</p>
-        <div style="margin-top:var(--s-5)">${button(playedToday ? 'Play again' : 'Play today\'s mirror', 'daily-play', { variant: 'primary', icon: 'play', block: true })}</div>
       </div>
     </section>`);
 }
@@ -172,14 +206,16 @@ export interface RunSummary {
   shards: number;
   mode: 'endless' | 'daily';
   reason: 'stuck' | 'fracture';
+  daily: { date: string; target: number; completed: boolean; streak: number; streakExtended: boolean; isToday: boolean } | null;
 }
 
-export function buildGameOverScreen(summary: RunSummary): HTMLElement {
+/** Results card. `staged` plays the sequential entrance that follows the katana cinematic (score first, buttons last). */
+export function buildGameOverScreen(summary: RunSummary, options: { staged?: boolean } = {}): HTMLElement {
   const metric = (label: string, value: string | number): string => `<div><span>${label}</span><strong class="num">${value}</strong></div>`;
   return element(`
     <section aria-label="Run over">
-      <div class="panel results">
-        <span class="eyebrow">${summary.reason === 'fracture' ? 'The mirror fractured' : summary.mode === 'daily' ? 'Daily Mirror complete' : 'Mirror at rest'}</span>
+      <div class="panel results${options.staged ? ' is-staged' : ''}">
+        <span class="eyebrow">${summary.reason === 'fracture' ? 'The mirror fractured' : summary.mode === 'daily' ? `Daily Mirror · ${formatDailyDate(summary.daily?.date ?? '')}` : 'Mirror at rest'}</span>
         <span class="crest-mark${summary.isNewBest ? ' is-best' : ''}">${icon('crest')}</span>
         <div class="final-score${summary.isNewBest ? ' is-best' : ''}">${summary.score.toLocaleString()}</div>
         <div class="best-line${summary.isNewBest ? ' is-new' : ''}">${summary.isNewBest ? 'NEW BEST' : `Best ${summary.best.toLocaleString()}`}</div>
@@ -187,6 +223,7 @@ export function buildGameOverScreen(summary: RunSummary): HTMLElement {
           ${metric('Lines', summary.lines)}${metric('Chain', summary.highestChain > 0 ? `×${summary.highestChain}` : '—')}${metric('Blades forged', summary.bladesForged)}
           ${metric('Blades used', summary.bladesUsed)}${metric('Overdrives', summary.overdrives)}${metric('Clutches', summary.clutches)}
         </div>
+        ${summary.daily ? `<div class="daily-result ${summary.daily.completed ? 'is-done' : ''}">${icon(summary.daily.completed ? 'owned' : 'daily')}<b>${summary.daily.completed ? 'Puzzle complete' : `Target ${summary.daily.target.toLocaleString()} not reached`}</b><small>${summary.daily.completed ? (summary.daily.streakExtended ? `${summary.daily.streak}-day streak` : summary.daily.isToday ? `${summary.daily.streak}-day streak` : 'Past puzzle · streak unchanged') : 'Replay any time from the calendar'}</small></div>` : ''}
         <span class="payout">${icon('shard')}+${summary.shards} Mirror Shards</span>
         <div class="actions">${button('Play again', 'restart', { variant: 'primary', icon: 'play' })}${button('Home', 'home', { variant: 'quiet', icon: 'home' })}</div>
       </div>

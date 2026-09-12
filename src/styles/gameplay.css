@@ -269,6 +269,11 @@
 .screen-gameplay[data-layout="portrait"] .status-chip.contract .contract-text { display: none; }
 .screen-gameplay[data-layout="portrait"] .status-chip.contract { padding-right: 6px; }
 
+.status-chip.daily { color: #dfe4e9; }
+.status-chip.daily .icon { color: var(--accent); }
+.status-chip.daily .bar i { background: var(--accent); }
+.status-chip.daily.is-done { color: #ffe7c2; background: linear-gradient(180deg, rgba(236, 180, 85, 0.22), rgba(236, 180, 85, 0.08)); box-shadow: 0 0 0 1px rgba(236, 180, 85, 0.35) inset, var(--shadow-rest); }
+.status-chip.daily.is-done .bar { display: none; }
 .status-chip.stress { color: #d8dde6; }
 .status-chip.stress .icon { color: var(--fracture); }
 .status-chip.stress .bar i { background: linear-gradient(90deg, var(--fracture), var(--danger)); }

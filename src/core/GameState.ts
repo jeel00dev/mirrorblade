@@ -1,15 +1,19 @@
 /**
  * Interaction phase of the current run. Navigation (which screen is showing) is tracked separately by the
  * ScreenManager, so opening a menu can never corrupt a placement transaction.
+ *
+ * CINEMATIC is the game-over sequence: the run is already decided and committed, nothing on the board is
+ * interactive, and the only input that does anything is a skip.
  */
-export type RunPhase = 'IDLE' | 'PLAYING' | 'DRAGGING' | 'CUTTING' | 'RESOLVING' | 'OVER';
+export type RunPhase = 'IDLE' | 'PLAYING' | 'DRAGGING' | 'CUTTING' | 'RESOLVING' | 'CINEMATIC' | 'OVER';
 
 const TRANSITIONS: Record<RunPhase, readonly RunPhase[]> = {
   IDLE: ['PLAYING'],
-  PLAYING: ['DRAGGING', 'RESOLVING', 'OVER', 'PLAYING'],
-  DRAGGING: ['PLAYING', 'CUTTING', 'RESOLVING'],
-  CUTTING: ['PLAYING', 'OVER'],
-  RESOLVING: ['PLAYING', 'OVER'],
+  PLAYING: ['DRAGGING', 'RESOLVING', 'CINEMATIC', 'OVER', 'PLAYING'],
+  DRAGGING: ['PLAYING', 'CUTTING', 'RESOLVING', 'CINEMATIC'],
+  CUTTING: ['PLAYING', 'CINEMATIC', 'OVER'],
+  RESOLVING: ['PLAYING', 'CINEMATIC', 'OVER'],
+  CINEMATIC: ['OVER'],
   OVER: ['PLAYING', 'IDLE'],
 };
 
@@ -33,5 +37,10 @@ export class RunPhaseMachine {
   /** True while a board transaction is still animating and navigation must wait. */
   public isBusy(): boolean {
     return this.phase === 'RESOLVING' || this.phase === 'CUTTING' || this.phase === 'DRAGGING';
+  }
+
+  /** True while the game-over cinematic owns the screen: input is a skip at most, navigation is refused. */
+  public isCinematic(): boolean {
+    return this.phase === 'CINEMATIC';
   }
 }

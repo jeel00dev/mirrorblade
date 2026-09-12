@@ -29,6 +29,17 @@ function dateString(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, 10) : '';
 }
 
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Per-date daily results: valid keys only, non-negative integers, capped to the most recent 2,000 dates. */
+function dailyScores(value: unknown): Record<string, number> {
+  const source = record(value);
+  const keys = Object.keys(source).filter((key) => DATE_KEY.test(key)).sort().slice(-2_000);
+  const result: Record<string, number> = {};
+  for (const key of keys) result[key] = integer(source[key], 0, 0, 9_999_999);
+  return result;
+}
+
 export function decodeSave(serialized: string | null): SaveData {
   const defaults = createDefaultSave();
   if (!serialized) return defaults;
@@ -98,6 +109,9 @@ export function decodeSave(serialized: string | null): SaveData {
         todayScore: integer(daily.todayScore, 0),
         bestDailyScore: sourceVersion < 2 ? 0 : integer(daily.bestDailyScore, 0),
         streak: integer(daily.streak, 0, 0, 10_000),
+        lastStreakDate: dateString(daily.lastStreakDate),
+        bestStreak: Math.max(integer(daily.bestStreak, 0, 0, 10_000), integer(daily.streak, 0, 0, 10_000)),
+        scores: dailyScores(daily.scores),
       },
     };
   } catch {

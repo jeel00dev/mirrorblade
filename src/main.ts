@@ -6,6 +6,7 @@ import './styles/components.css';
 import './styles/gameplay.css';
 import './styles/screens.css';
 import './styles/states.css';
+import './styles/cinematic.css';
 import { Game } from './core/Game';
 import { CrazyGamesAdapter } from './platform/CrazyGamesAdapter';
 import { localStorageBackend, StorageAdapter } from './platform/StorageAdapter';
@@ -36,7 +37,8 @@ async function boot(): Promise<void> {
       setScore: (value) => game.debugSetScore(value),
       forcePiece: (definitionId, tone) => game.debugForcePiece(definitionId, tone),
       fillBoard: (cells, tone) => game.debugFillBoard(cells, tone),
-      endRun: () => game.debugEndRun(),
+      endRun: (reason) => game.debugEndRun(reason),
+      skipCinematic: () => game.debugSkipCinematic(),
       forceOverdrive: () => game.debugForceOverdrive(),
       forceFracture: () => game.debugForceFracture(),
     };

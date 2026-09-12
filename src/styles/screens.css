@@ -102,6 +102,18 @@ body.reduced-motion .screen-home .wordmark::after { animation: none; }
 .record strong { font-size: clamp(20px, 2.6vw, 26px); font-weight: 800; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
 .record strong .icon { width: 22px; height: 22px; color: var(--accent); filter: drop-shadow(0 2px 3px rgba(236, 180, 85, 0.3)); }
 .record-shards strong .icon { color: var(--info); filter: drop-shadow(0 2px 3px rgba(67, 194, 199, 0.3)); }
+@media (max-width: 520px) {
+  .home-records { gap: var(--s-2); }
+  .record { min-width: 120px; padding: 8px 14px 10px; }
+  .record strong { font-size: 20px; }
+}
+/* The streak flame is carved into the Daily Mirror button: a recessed pill that moves with the surface */
+.btn-daily { justify-content: flex-start; padding-right: 10px; }
+.btn-daily > span:not(.streak-flame) { flex: 1; text-align: center; }
+.btn-daily .streak-flame { margin-left: var(--s-2); gap: 5px; padding: 0 12px 0 8px; height: 36px; border-radius: 999px; background: linear-gradient(180deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26)); box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.06); }
+.btn-daily .streak-flame.is-compact .icon { width: 20px; height: 20px; }
+.btn-daily .streak-flame.is-compact b { font-size: 16px; }
+.btn-daily .streak-flame.tier-0 { opacity: 0.6; }
 .home-actions { width: min(100%, 420px); display: grid; gap: var(--s-3); }
 .home-actions .btn-primary { min-height: 72px; font-size: 20px; }
 .home-actions .btn-secondary { min-height: 56px; }
@@ -133,7 +145,7 @@ body.reduced-motion .screen-home .wordmark::after { animation: none; }
 
 /* ---------- Shop / Collection ---------- */
 .catalog { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: var(--s-4); height: 100%; }
-.screen-shop .screen-body, .screen-collection .screen-body { overflow: hidden; display: grid; }
+.screen-shop .screen-body, .screen-collection .screen-body { overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr); }
 .category-nav { display: flex; gap: var(--s-2); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .category-nav::-webkit-scrollbar { display: none; }
 .category-nav button { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; color: var(--text-muted); font-size: var(--fs-caption); font-weight: 700; background: var(--panel-secondary); box-shadow: 0 0 0 1px var(--panel-border) inset, 0 2px 0 rgba(0, 0, 0, 0.2), 0 5px 12px rgba(0, 0, 0, 0.2); display: inline-flex; align-items: center; gap: 8px; transition: color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast); }
@@ -229,21 +241,94 @@ body.reduced-motion .screen-home .wordmark::after { animation: none; }
 .empty-state { display: grid; place-items: center; gap: var(--s-3); min-height: 200px; color: var(--text-muted); text-align: center; }
 
 @media (max-width: 640px) {
+  /* Phones and small tablets: the whole shop page scrolls (the strip alone would be a tiny window under the preview). */
+  .screen-shop .screen-body, .screen-collection .screen-body { display: block; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .catalog { height: auto; }
+  /* Tabs stay reachable while the page scrolls */
+  .category-nav { position: sticky; top: 0; z-index: 3; margin: 0 calc(var(--s-4) * -1); padding: var(--s-1) var(--s-4) var(--s-2); background: linear-gradient(180deg, var(--bg-main) 78%, transparent); }
+  .item-strip { overflow: visible; }
   .preview-card { grid-template-columns: 1fr; min-height: 0; }
   .preview-stage { min-height: 170px; }
   .item-strip { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 }
 
-/* ---------- Daily ---------- */
-.daily-hero { display: grid; justify-items: center; text-align: center; gap: var(--s-2); padding: var(--s-6) var(--s-4); }
-.daily-hero .date { font-size: var(--fs-section); color: var(--text-secondary); font-weight: 600; }
-.daily-hero .streak { display: inline-flex; align-items: center; gap: 8px; margin-top: var(--s-2); padding: 8px 14px; border-radius: 999px; background: var(--panel-secondary); font-weight: 700; color: var(--text-secondary); }
-.daily-hero .streak .icon { width: 18px; height: 18px; color: var(--accent); }
-.daily-records { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); margin: var(--s-4) 0; }
-.daily-records div { display: grid; justify-items: center; gap: 4px; padding: var(--s-3); border-radius: var(--r-m); background: var(--panel-secondary); box-shadow: var(--shadow-inset); }
-.daily-records span { font-size: var(--fs-micro); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
-.daily-records strong { font-size: 20px; font-variant-numeric: tabular-nums; }
-.daily-rules { color: var(--text-secondary); font-size: var(--fs-body); line-height: 1.55; padding: 0 var(--s-2); }
+/* ---------- Daily Mirror calendar ---------- */
+.daily-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.9fr); gap: var(--s-4); align-items: start; }
+.calendar { padding: var(--s-4); display: grid; gap: var(--s-3); }
+.cal-head { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: var(--s-2); }
+.cal-head h2 { text-align: center; font-size: var(--fs-section); font-weight: 760; }
+.cal-nav { width: 44px; height: 44px; border-radius: var(--r-s); }
+.cal-nav .icon { width: 20px; height: 20px; }
+.cal-next .icon { transform: scaleX(-1); }
+.cal-nav:disabled { opacity: 0.35; transform: none; box-shadow: var(--shadow-pressed), var(--inner-edge); cursor: default; }
+.cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-weekdays span { text-align: center; font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); padding: 2px 0; }
+.cal-pad { display: block; }
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-m);
+  color: #cfd0d4;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* Same control face as the icon buttons */
+  background: linear-gradient(180deg, var(--control-face-hover), var(--control-face));
+  box-shadow: var(--shadow-rest), var(--inner-highlight), var(--inner-edge);
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast), filter var(--t-fast), color var(--t-fast);
+}
+.cal-day:hover { transform: translateY(-2px); filter: brightness(1.1); color: #fff; box-shadow: var(--shadow-hover), var(--inner-highlight), var(--inner-edge); }
+.cal-day:active { transform: translateY(1px) scale(0.96); filter: none; box-shadow: var(--shadow-pressed), var(--inner-highlight), var(--inner-edge); transition-duration: 60ms; }
+.cal-day .mark { position: absolute; right: 4px; top: 4px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(180deg, #7fe0b3, var(--success)); color: #0c2a1c; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.cal-day .mark .icon { width: 12px; height: 12px; stroke-width: 2.6; }
+.cal-day.is-done .mark { animation: mark-pop var(--t-reward) var(--ease-spring); }
+@keyframes mark-pop { 0% { transform: scale(0.4); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+/* Completed: gold, like the primary action and the crest */
+.cal-day.is-done { color: var(--accent-ink); background: linear-gradient(180deg, #f8cf7e 0%, var(--accent) 55%, #d99d3c 100%); box-shadow: 0 2px 0 rgba(120, 75, 10, 0.5), 0 6px 14px rgba(236, 180, 85, 0.25), 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(120, 75, 10, 0.3) inset; }
+.cal-day.is-done:hover { color: var(--accent-ink); box-shadow: 0 3px 0 rgba(120, 75, 10, 0.5), 0 10px 22px rgba(236, 180, 85, 0.3), 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(120, 75, 10, 0.3) inset; }
+/* Today: outlined, ready to play */
+.cal-day.is-today:not(.is-done) { color: var(--text-primary); box-shadow: var(--shadow-rest), var(--inner-highlight), 0 0 0 1.5px var(--accent) inset; }
+.cal-day.is-today::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); transform: translateX(-50%); }
+.cal-day.is-done.is-today::after { background: var(--accent-ink); opacity: 0.6; }
+/* Future: engraved, locked */
+.cal-day.is-future { color: rgba(255, 255, 255, 0.2); background: linear-gradient(180deg, #1d2127, #191c22); box-shadow: var(--shadow-inset); cursor: default; }
+.cal-day.is-future:hover { transform: none; filter: none; color: rgba(255, 255, 255, 0.2); box-shadow: var(--shadow-inset); }
+/* Selected: accent ring on top of whichever state */
+.cal-day.is-selected { box-shadow: var(--shadow-rest), var(--inner-highlight), 0 0 0 2px var(--accent-strong) inset, 0 0 0 4px rgba(236, 180, 85, 0.18); }
+.cal-day.is-done.is-selected { box-shadow: 0 2px 0 rgba(120, 75, 10, 0.5), 0 6px 14px rgba(236, 180, 85, 0.25), 0 0 0 2px #fff4d6 inset, 0 0 0 4px rgba(236, 180, 85, 0.3); }
+.cal-foot { display: flex; justify-content: center; font-size: var(--fs-caption); color: var(--text-muted); font-weight: 600; }
+
+.daily-side { display: grid; gap: var(--s-3); }
+.streak-card { padding: var(--s-4); display: grid; gap: var(--s-3); }
+.streak-main { display: flex; align-items: center; gap: var(--s-3); }
+.streak-main .streak-flame .icon { width: 44px; height: 44px; }
+.streak-main .streak-flame b { font-size: 40px; }
+.streak-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.streak-meta span { display: grid; gap: 2px; padding: var(--s-2) var(--s-3); border-radius: var(--r-s); background: var(--panel-secondary); box-shadow: var(--shadow-inset); font-size: var(--fs-micro); color: var(--text-muted); font-weight: 600; }
+.streak-meta b { font-size: var(--fs-body); color: var(--text-primary); }
+.day-detail { padding: var(--s-4); display: grid; gap: var(--s-2); }
+.day-detail h2 { font-size: var(--fs-section); font-weight: 760; }
+.day-status { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-weight: 700; font-size: var(--fs-caption); }
+.day-status .icon { width: 20px; height: 20px; color: var(--text-muted); }
+.day-detail.is-done .day-status { color: var(--success); }
+.day-detail.is-done .day-status .icon { color: var(--success); }
+.day-detail .btn { margin-top: var(--s-2); }
+.home-actions .btn-secondary small.done { color: var(--success); }
+@media (max-width: 720px) {
+  .daily-layout { grid-template-columns: 1fr; }
+  .calendar { padding: var(--s-3); }
+  .cal-weekdays, .cal-grid { gap: 4px; }
+  .cal-day { min-height: 40px; border-radius: 10px; font-size: var(--fs-caption); }
+  .cal-day .mark { right: 3px; top: 3px; width: 14px; height: 14px; }
+}
+.daily-result { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); border-radius: var(--r-m); background: var(--panel-secondary); box-shadow: var(--shadow-inset); text-align: left; }
+.daily-result .icon { width: 24px; height: 24px; color: var(--text-muted); }
+.daily-result.is-done .icon { color: var(--success); }
+.daily-result b { display: block; font-size: var(--fs-body); }
+.daily-result small { display: block; color: var(--text-muted); font-size: var(--fs-caption); }
 
 /* ---------- Stats ---------- */
 .stat-hero { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }

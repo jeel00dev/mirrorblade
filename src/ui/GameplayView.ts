@@ -196,7 +196,7 @@ export class GameplayView {
     }
   }
 
-  private chip(kind: 'fracture' | 'overdrive' | 'chain' | 'stress' | 'contract', present: boolean, markup: () => string): HTMLElement | null {
+  private chip(kind: 'fracture' | 'overdrive' | 'chain' | 'stress' | 'contract' | 'daily', present: boolean, markup: () => string): HTMLElement | null {
     let element = this.status.querySelector<HTMLElement>(`.status-chip.${kind}`);
     if (!present) {
       element?.remove();
@@ -255,6 +255,15 @@ export class GameplayView {
     }
   }
 
+  /** Daily Mirror: progress toward the day's target; turns gold when done. */
+  public setDailyTarget(score: number, target: number, done: boolean, visible = true): void {
+    const chip = this.chip('daily', visible, () => `${icon('daily')}<span class="label">Daily</span><b class="value"></b><span class="bar"><i></i></span>`);
+    if (!chip) return;
+    chip.classList.toggle('is-done', done);
+    chip.querySelector<HTMLElement>('.value')!.textContent = done ? 'Done' : `${score.toLocaleString()} / ${target.toLocaleString()}`;
+    chip.querySelector<HTMLElement>('.bar i')!.style.setProperty('--p', Math.min(1, score / target).toFixed(3));
+  }
+
   public milestonePulse(): void {
     this.element.classList.remove('is-milestone');
     void this.element.offsetWidth;
@@ -274,6 +283,16 @@ export class GameplayView {
 
   public setDead(dead: boolean): void {
     this.board.element.classList.toggle('is-dead', dead);
+    if (!dead) {
+      this.board.element.classList.remove('is-mirror-dead', 'is-cinematic', 'is-unstable', 'is-recoil');
+      this.setCinematic(false);
+    }
+  }
+
+  /** Game-over cinematic: secondary HUD steps back, the score stays; the crest answers a new best. */
+  public setCinematic(active: boolean, options: { newBest?: boolean } = {}): void {
+    this.element.classList.toggle('is-cinematic', active);
+    this.element.classList.toggle('is-new-best', active && Boolean(options.newBest));
   }
 
   public shake(level: 2 | 3): void {

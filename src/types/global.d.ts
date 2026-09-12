@@ -11,7 +11,8 @@ declare global {
       setScore: (value: number) => void;
       forcePiece: (definitionId: string, tone?: BlockTone) => void;
       fillBoard: (cells: readonly GridCell[], tone?: BlockTone) => void;
-      endRun: () => void;
+      endRun: (reason?: 'stuck' | 'fracture') => void;
+      skipCinematic: () => boolean;
       forceOverdrive: () => void;
       forceFracture: () => void;
     };

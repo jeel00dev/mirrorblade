@@ -4,6 +4,9 @@ import { applyKatanaSkin, buildKatana, createKatanaMaterials, type KatanaMateria
 
 export type BladeSkin = KatanaSkin;
 
+/** upright: Home hero. dock: gameplay rack. showcase: Shop preview. slash: held by the game-over cinematic. */
+export type BladePose = 'upright' | 'dock' | 'showcase' | 'slash';
+
 export interface BladeState {
   charges: number;
   hover: boolean;
@@ -38,7 +41,11 @@ export class BladeScene {
   private slashT = -1;
   private state: BladeState = { charges: 3, hover: false, energy: 0, overdrive: false, fracture: false };
   private hero = false;
-  private pose: 'upright' | 'dock' | 'showcase' = 'dock';
+  private pose: BladePose = 'dock';
+  /** Slash pose: the sword is held perpendicular to its travel path, edge leading. */
+  private slashTilt = Math.PI / 4;
+  private slashFlip = false;
+  private edgeGlow = 0;
   private reducedMotion = false;
   private width = 1;
   private height = 1;
@@ -84,13 +91,14 @@ export class BladeScene {
   }
 
   /** Moves the canvas into a container and starts rendering there. With `travel`, the blade glides from its previous place. */
-  public mount(container: HTMLElement, options: { hero?: boolean; travel?: boolean; pose?: 'upright' | 'dock' | 'showcase' } = {}): void {
+  public mount(container: HTMLElement, options: { hero?: boolean; travel?: boolean; pose?: BladePose } = {}): void {
     if (this.container === container) return;
     const from = options.travel && this.container ? this.canvas.getBoundingClientRect() : null;
     this.unmount();
     this.container = container;
     this.hero = Boolean(options.hero);
     this.pose = options.pose ?? (this.hero ? 'upright' : 'dock');
+    this.group.rotation.order = this.pose === 'slash' ? 'ZYX' : 'XYZ';
     container.append(this.canvas);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -165,6 +173,29 @@ export class BladeScene {
     this.burst = Math.max(this.burst, Math.min(1, strength));
   }
 
+  /**
+   * Orientation for the `slash` pose. `tilt` is the rotation about the view axis (radians); `flip` turns the sword
+   * over so the edge faces the other way for the mirrored diagonal. `glow` 0–1 lights the edge hairline.
+   */
+  public setSlashPose(options: { tilt?: number; flip?: boolean; glow?: number }): void {
+    if (options.tilt !== undefined) this.slashTilt = options.tilt;
+    if (options.flip !== undefined) this.slashFlip = options.flip;
+    if (options.glow !== undefined) this.edgeGlow = Math.max(0, Math.min(1, options.glow));
+    if (this.pose === 'slash') {
+      this.applySlashRotation();
+      if (options.tilt !== undefined) this.resize();
+    }
+  }
+
+  /**
+   * Slash pose rotation. Order ZYX: a roll about the sword's own length first (so the face turns toward the
+   * environment lights instead of mirroring the dark wall behind the camera), then the on-screen tilt.
+   */
+  private applySlashRotation(): void {
+    const roll = 0.42 + this.edgeGlow * 0.22;
+    this.group.rotation.set(0.04, (this.slashFlip ? Math.PI : 0) + (this.slashFlip ? -roll : roll), this.slashTilt, 'ZYX');
+  }
+
   /** One 200 ms slash on a cut. */
   public slash(): void {
     if (this.reducedMotion) { this.burst = Math.max(this.burst, 0.5); return; }
@@ -197,7 +228,7 @@ export class BladeScene {
     // Fit the tilted 5.3-unit sword: its bounding box depends on the pose tilt.
     const tilt = this.tiltFor();
     const half = 2.8;
-    const fill = this.pose === 'showcase' ? 0.78 : this.hero ? 0.92 : 0.9;
+    const fill = this.pose === 'showcase' ? 0.78 : this.pose === 'slash' ? 0.94 : this.hero ? 0.92 : 0.9;
     const extentY = (Math.abs(Math.cos(tilt)) * half + 0.12) / fill;
     const extentX = (Math.abs(Math.sin(tilt)) * half + 0.2) / fill;
     const fovHalf = THREE.MathUtils.degToRad(this.camera.fov / 2);
@@ -208,13 +239,24 @@ export class BladeScene {
   }
 
   private tiltFor(): number {
-    return this.pose === 'upright' ? 0 : this.pose === 'showcase' ? -0.95 : -0.55;
+    return this.pose === 'upright' ? 0 : this.pose === 'showcase' ? -0.95 : this.pose === 'slash' ? this.slashTilt : -0.55;
   }
 
   private animate(): void {
     if (!this.running) return;
     const delta = Math.min(0.05, this.clock.getDelta());
     const time = this.clock.elapsedTime;
+    if (this.pose === 'slash') {
+      // Held still by the cinematic: no sway, no spin, the edge lit as hard as the caller asks.
+      this.applySlashRotation();
+      this.group.position.y = 0;
+      this.materials.steel.roughness = 0.16;
+      this.materials.steel.envMapIntensity = 1.6 + this.edgeGlow * 1.4;
+      this.materials.edge.opacity = this.edgeGlow;
+      this.renderer.render(this.scene, this.camera);
+      this.frame = requestAnimationFrame(this.animate);
+      return;
+    }
     const burstSpeed = this.burst > 0 ? 8.5 * this.burst : 0;
     if (this.burst > 0) this.burst = Math.max(0, this.burst - delta * 1.5);
     const jitter = this.state.fracture ? Math.sin(time * 9) * 0.3 : 0;
