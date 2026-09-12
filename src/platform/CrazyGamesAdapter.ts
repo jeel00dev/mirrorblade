@@ -14,10 +14,13 @@ export class CrazyGamesAdapter {
   private sdk: CrazyGamesSDK | null = null;
   private initialized = false;
   private gameplayActive = false;
+  private reportedCompletion = -1;
 
   public async init(): Promise<void> {
     const sdk = window.CrazyGames?.SDK;
     if (!sdk) return;
+    // Docs: only use the SDK in the `local` and `crazygames` environments; elsewhere every call throws.
+    if (sdk.environment === 'disabled') return;
     try {
       await Promise.race([
         sdk.init(),
@@ -51,6 +54,19 @@ export class CrazyGamesAdapter {
   }
 
   public happyTime(): void { if (this.initialized) this.safe(() => this.sdk?.game?.happytime()); }
+
+  /** Endless game: completion is defined as the Mirror Level milestones reached in a run (0–100, monotonic per run). */
+  public reportCompletion(percentage: number): void {
+    const value = Math.max(0, Math.min(100, Math.round(percentage)));
+    if (value <= this.reportedCompletion) return;
+    this.reportedCompletion = value;
+    if (this.initialized) this.safe(() => this.sdk?.game?.reportGameCompletedPercentage?.(value));
+  }
+
+  /** A new run starts the completion measure again. */
+  public resetCompletion(): void {
+    this.reportedCompletion = -1;
+  }
 
   public getStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'clear'> | null {
     if (!this.initialized || !this.sdk?.data) return null;

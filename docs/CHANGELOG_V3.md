@@ -125,3 +125,11 @@ Files: `src/render/Layout.ts`, `e2e/responsive.spec.ts`, `e2e/cinematic.spec.ts`
 Reason: Codex ran out of usage after implementing the responsive/dynamic-tray pass (see the preceding Codex entries and `responsive-layout-audit.md`). Re-ran the whole validation on its tree, then two refinements: an overflowing tray now leaves 30 % of the next row visible (phone portrait, tablet portrait and landscape rails) so players can see there is more to scroll to; the 22-viewport × 8-count matrix test became 22 tests so a failure names the size and the suite cannot time out under load. Two timing-sensitive cinematic assertions were made frame-tolerant.
 
 Validation: lint; 111 unit; 63 e2e green (full run twice); build; captures at 390×844 / 768×1024 / 844×390 with 6–8 pieces.
+
+## 2026-09-13 — CrazyGames Basic Launch compliance pass
+
+Files: `src/platform/CrazyGamesAdapter.ts`, `src/platform/CrazyGamesTypes.ts`, `src/core/Game.ts`, `src/audio/AudioManager.ts`, `e2e/helpers.ts`, `e2e/crazygames.spec.ts`, `docs/crazygames-compliance.md`, `docs/qa/crazygames/`, README.
+
+Reason: owner asked for an in-depth check against the CrazyGames Basic Launch rules. Almost everything already complied; four gaps were closed: the SDK is now skipped in the `disabled` environment (docs say every call throws there), game completion is reported per Mirror Level for the endless mode, the context menu is suppressed on touch long-press, and the iOS `interrupted` AudioContext state is resumed like `suspended`. Escape remains a convenience key but the documented pause key is `P`.
+
+Validation: lint; 111 unit; 66 e2e (3 new); build 860 KB; captures at 907×510, 1216×684, 800×450, 1080×607.

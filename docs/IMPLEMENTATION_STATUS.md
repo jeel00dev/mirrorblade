@@ -195,3 +195,18 @@ Definition of done, checked: run lock ✓ · katana enters/exits ✓ · slash re
 - [T] Handover check (Claude, 2026-09-12 15:30): Codex's tree re-verified — 111 unit, 63 e2e (matrix split into one test per viewport so no single test times out under load), build; overflowing trays now keep 30 % of the next row in view (`PEEK_ROW` in `Layout.ts`) so the scroll is self-evident on phone/tablet.
 
 Research: `research-2026-09-12-responsive-dynamic-tray.md`. Audit and measured root causes: `responsive-layout-audit.md`. Final coverage: 111 unit tests; 42 Playwright tests; counts 1–8 across 22 target viewports plus 12-piece degradation; touch scroll/drag/cut; full seven-viewport screen captures and dedicated dynamic-tray captures with no console errors. Physical-device GPU/touch feel remains a release check, not an implementation blocker.
+
+---
+
+# CRAZYGAMES BASIC LAUNCH COMPLIANCE — 2026-09-13
+
+Audit: `crazygames-compliance.md` (every rule from the requirements, technical, gameplay, quality and SDK pages with its status).
+
+- [T] SDK lifecycle order verified by e2e (loading → gameplayStart on play/resume → gameplayStop on pause/menu/game over, never on blur)
+- [x] `disabled` environment never initialised; blocked SDK script still boots and plays (e2e)
+- [x] `reportGameCompletedPercentage` on Mirror Level milestones (20 % steps)
+- [x] Context menu suppressed on the game root; `user-select` / touch-callout already off
+- [x] iOS `interrupted` AudioContext resumes on gesture and on tab return
+- [T] Legibility at the six CrazyGames QA viewports (DPR 1) captured in `qa/crazygames/`
+- [x] Bundle 860 KB / 4 asset files, relative paths, no external links, no fullscreen button, English, PEGI 12
+- [ ] Portal: description, controls, covers (owner, at upload)

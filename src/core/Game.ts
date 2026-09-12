@@ -178,6 +178,8 @@ export class Game {
       interrupted: () => this.clock.gate('pointer', false),
     });
     this.root.addEventListener('click', this.onClick);
+    // CrazyGames mobile requirement: no context menu / magnifier on long-press inside the game.
+    this.root.addEventListener('contextmenu', (event) => event.preventDefault());
     this.root.addEventListener('input', this.onInput);
     this.root.addEventListener('pointerdown', () => {
       void this.audio.unlock();
@@ -350,6 +352,7 @@ export class Game {
     this.tutorialStep = this.save.onboardingComplete || mode === 'daily' ? 0 : 1;
     this.tray.replaceAll(this.initialBatch());
     this.activeRun = true;
+    this.platform.resetCompletion();
     if (this.phase.current() !== 'PLAYING') this.phase.transition('PLAYING');
     if (mode === 'daily') this.beginDaily();
     this.clock.reset();
@@ -1449,6 +1452,8 @@ export class Game {
     this.blade.forgeBurst();
     this.audio.play('milestone');
     this.audio.vibrate([6, 18, 8]);
+    // CrazyGames completion metric for an endless game: each Mirror Level is a fifth of the way.
+    this.platform.reportCompletion(((index + 1) / DIFFICULTY.milestones.length) * 100);
     this.showUnlocks(this.achievements.evaluate({ type: 'milestone', index }));
   }
 

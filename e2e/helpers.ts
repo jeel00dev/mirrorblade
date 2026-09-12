@@ -10,7 +10,13 @@ export const sdkStub = `
       removeItem(key) { localStorage.removeItem(key); },
       clear() { localStorage.clear(); }
     },
-    game: { gameplayStart(){}, gameplayStop(){}, loadingStart(){}, loadingStop(){}, happytime(){} },
+    game: {
+      calls: [],
+      gameplayStart(){ this.calls.push('gameplayStart'); }, gameplayStop(){ this.calls.push('gameplayStop'); },
+      loadingStart(){ this.calls.push('loadingStart'); }, loadingStop(){ this.calls.push('loadingStop'); },
+      happytime(){ this.calls.push('happytime'); }, reportGameCompletedPercentage(value){ this.calls.push('completion:' + value); },
+      settings: { muteAudio: false }, addSettingsChangeListener(){}, removeSettingsChangeListener(){}
+    },
     user: { systemInfo: { device: 'desktop' } },
     ad: { requestAd(_type, callbacks) { callbacks.adError({ code: 'adsDisabledBasicLaunch', message: 'disabled' }); } },
     banner: { async requestResponsiveBanner(){ throw new Error('disabled'); }, clearBanner(){}, clearAllBanners(){} }

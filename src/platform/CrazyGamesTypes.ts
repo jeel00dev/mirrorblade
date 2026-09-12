@@ -14,6 +14,7 @@ export interface CrazyGamesSDK {
     loadingStart(): void;
     loadingStop(): void;
     happytime(): void;
+    reportGameCompletedPercentage?(percentage: number): void;
     settings?: { muteAudio?: boolean; disableChat?: boolean };
     addSettingsChangeListener?(listener: (settings: { muteAudio?: boolean }) => void): void;
     removeSettingsChangeListener?(listener: (settings: { muteAudio?: boolean }) => void): void;

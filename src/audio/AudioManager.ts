@@ -47,7 +47,8 @@ export class AudioManager {
 
   public async unlock(): Promise<void> {
     if (!this.context) this.createGraph();
-    if (this.context?.state === 'suspended') { try { await this.context.resume(); } catch { /* blocked until gesture */ } }
+    // iOS reports "interrupted" (non-standard) after a call or app switch; anything but running needs a gesture resume.
+    if (this.context && this.context.state !== 'running') { try { await this.context.resume(); } catch { /* blocked until gesture */ } }
     this.updateLevels();
   }
 
@@ -143,7 +144,7 @@ export class AudioManager {
   public setSuspended(suspended: boolean): void {
     if (!this.context) return;
     if (suspended && this.context.state === 'running') void this.context.suspend();
-    else if (!suspended && this.context.state === 'suspended') void this.context.resume();
+    else if (!suspended && this.context.state !== 'running') void this.context.resume().catch(() => undefined);
   }
 
   public vibrate(pattern: number | number[]): void {

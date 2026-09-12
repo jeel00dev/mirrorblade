@@ -17,6 +17,7 @@ Everything about the V2 overhaul lives in `docs/`. Both agents (Codex and Claude
 | `BUGS.md` | Bug tracker (ID, severity, status, repro, expected, actual, fix, test) | Both |
 | `balance-report.md` | Simulated / manual playtest results and tuning decisions | Claude |
 | `game-over-animation-research.md` | Hit-stop, slicing feedback, sword timing and collapse references behind the katana game-over cinematic, with the event timeline | Claude, 12 Sep 2026 |
+| `crazygames-compliance.md` | Basic Launch rules from the CrazyGames docs, rule-by-rule status, portal copy; captures in `qa/crazygames/` | Claude, 13 Sep 2026 |
 | `reference/original-reference.png` | **The primary visual reference.** The owner wants this material language across the whole game | Never modify |
 | `reference/current-v1-*.png` | V1 desktop screenshots supplied by the owner showing the problems | Never modify |
 | `qa/v1/` | Baseline V1 captures at 7 viewports + overlay diagnostic | Frozen |

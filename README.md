@@ -44,7 +44,7 @@ node scripts/qa-shot.mjs 390 844 out.png --play --state contract   # one quick c
 
 Timers only advance while the game is actually playable: they freeze on menus, hidden tabs, window blur, ads, resizes and interrupted pointers.
 
-Keyboard: `R` rotate · `P` / `Esc` pause · `Esc` back.
+Keyboard: `R` rotate · `P` pause (`Esc` also pauses / goes back, but note that `Esc` leaves browser fullscreen first).
 
 ## Architecture
 
@@ -66,7 +66,7 @@ One JSON document (`mirrorblade.save`) holds currency, owned and equipped cosmet
 
 ## CrazyGames
 
-`CrazyGamesAdapter` initializes SDK v3 with a timeout, reports loading and gameplay events, honours the platform mute setting, probes the Data Module, and wraps ad requests so they always settle. Ads and banners are disabled for Basic Launch (`GAMEPLAY_FLAGS`). Upload the contents of `dist/` with `index.html` at the archive root; all paths are relative.
+`CrazyGamesAdapter` initializes SDK v3 with a timeout (and skips it entirely in the `disabled` environment), reports loading and gameplay events (never on focus loss), reports Mirror Level milestones as game completion, honours the platform mute setting, probes the Data Module, and wraps ad requests so they always settle. Ads and banners are disabled for Basic Launch (`GAMEPLAY_FLAGS`). Upload the contents of `dist/` with `index.html` at the archive root; all paths are relative. The rule-by-rule audit, portal copy and QA captures are in [`docs/crazygames-compliance.md`](docs/crazygames-compliance.md).
 
 ## Tests
 
