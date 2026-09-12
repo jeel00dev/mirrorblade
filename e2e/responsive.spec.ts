@@ -38,13 +38,12 @@ async function assertInViewport(page: Page, selector: string, width: number, hei
   expect(box!.y + box!.height, `${selector} bottom edge at ${width}x${height}`).toBeLessThanOrEqual(height + 1);
 }
 
-test('all target viewports keep dynamic trays contained, reachable and separate from the katana', async ({ page }) => {
-  test.setTimeout(180_000);
-  await openGame(page, { save: { settings: { quality: 'low', reducedMotion: true } } });
-  await page.evaluate(() => { window.__MIRRORBLADE_TEST__!.setScore(1234); window.__MIRRORBLADE_TEST__!.setBlades(2); });
-
-  for (const [width, height] of viewports) {
+// One test per viewport so a failure names the size and no single test runs long enough to time out under load.
+for (const [width, height] of viewports) {
+  test(`${width}x${height} keeps dynamic trays contained, reachable and separate from the katana`, async ({ page }) => {
     await page.setViewportSize({ width, height });
+    await openGame(page, { save: { settings: { quality: 'low', reducedMotion: true } } });
+    await page.evaluate(() => { window.__MIRRORBLADE_TEST__!.setScore(1234); window.__MIRRORBLADE_TEST__!.setBlades(2); });
     await page.mouse.move(1, 1);
     for (const count of pieceCounts) {
       await forceTray(page, count);
@@ -109,12 +108,12 @@ test('all target viewports keep dynamic trays contained, reachable and separate 
       }
       await page.locator('#tray').evaluate((tray) => { tray.scrollTop = 0; });
     }
-  }
-  const finalState = await state(page);
-  expect(finalState.score).toBe(1234);
-  expect(finalState.blades).toBe(2);
-  expect(finalState.phase).toBe('PLAYING');
-});
+    const finalState = await state(page);
+    expect(finalState.score).toBe(1234);
+    expect(finalState.blades).toBe(2);
+    expect(finalState.phase).toBe('PLAYING');
+  });
+}
 
 test('defensive 12-piece trays degrade to scrolling without covering the blade', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

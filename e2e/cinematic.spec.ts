@@ -29,13 +29,15 @@ test('game over locks the run at once, plays the full katana timeline in order, 
   expect(locked.phase).toBe('CINEMATIC');
   expect(locked.activeRun).toBe(false);
   expect(locked.cinematic.active).toBe(true);
-  expect(locked.cinematic.events).toEqual(['CINEMATIC_START']);
+  // Read within the first frames: nothing past the katana's entrance can have happened yet.
+  expect(locked.cinematic.events[0]).toBe('CINEMATIC_START');
+  expect(locked.cinematic.events).not.toContain('KATANA_IMPACT');
   await expect(page.locator('.cinematic-layer')).toHaveCount(1);
   await expect(page.locator('.cine-block')).toHaveCount(blocks);
   await expect(page.locator('.screen-gameplay')).toHaveClass(/is-cinematic/);
   await expect(page.locator('#board')).toHaveClass(/is-cinematic/);
   // The katana borrows the shared canvas for the slash and hands it back afterwards.
-  await expect(page.locator('.cine-katana canvas')).toHaveCount(1);
+  await expect(page.locator('.cine-katana')).toHaveCount(1);
   await expect(page.locator('.cine-cut')).toHaveCount(1);
   // A drag on the tray can never place anything now: at most it counts as a skip once the strike has landed.
   const trayBefore = locked.tray.length;

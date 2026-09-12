@@ -117,3 +117,11 @@ Files: `src/render/{Layout,TrayView,PiecePreviewLayout}.ts`, `src/ui/GameplayVie
 Reason: cut fragments raised the live tray above three pieces, but the layout still reserved one fixed three-card band. Extra implicit rows painted through the katana and outside the clipped viewport, and a global preview cell made vertical five-cell pieces escape their cards. The tray now has count-aware tracks, an internally scrollable grid and a separate blade region. Every preview is normalized and fitted against its actual card bounds, new fragments reflow and reveal, touch distinguishes scroll from held drag, and container resize does not mutate run state. The Home blade animation Play/Pause button was removed as requested; the primary Play action and Blade Shop showcase controls remain.
 
 Validation: `npm run check` (lint, 111 unit tests, production build); 42 Playwright tests including the 22-viewport × counts 1–8 geometry matrix, defensive 12 pieces, touch scroll/drag/cut, auto-reveal and Home control assertion; 126 standard screen/state captures at seven viewports with zero console errors; dedicated 3/8-piece captures at desktop, tablet, phone portrait, phone landscape and unusual sizes. No external asset added.
+
+## 2026-09-12 15:30 IST — Responsive dynamic tray: handover verification (Claude)
+
+Files: `src/render/Layout.ts`, `e2e/responsive.spec.ts`, `e2e/cinematic.spec.ts`, docs.
+
+Reason: Codex ran out of usage after implementing the responsive/dynamic-tray pass (see the preceding Codex entries and `responsive-layout-audit.md`). Re-ran the whole validation on its tree, then two refinements: an overflowing tray now leaves 30 % of the next row visible (phone portrait, tablet portrait and landscape rails) so players can see there is more to scroll to; the 22-viewport × 8-count matrix test became 22 tests so a failure names the size and the suite cannot time out under load. Two timing-sensitive cinematic assertions were made frame-tolerant.
+
+Validation: lint; 111 unit; 63 e2e green (full run twice); build; captures at 390×844 / 768×1024 / 844×390 with 6–8 pieces.

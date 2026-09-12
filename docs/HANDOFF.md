@@ -2,6 +2,12 @@
 
 Newest entry first. Each session appends: who, when, what was done, what to pick up next.
 
+## 2026-09-12 15:30 IST — Claude: responsive tray handover verified and pushed
+
+Codex's uncommitted tray work was re-verified end to end (111 unit, 63 e2e, build, captures with 6–8 pieces at phone/tablet/landscape). Added the next-row peek for overflowing trays and split the viewport matrix e2e per viewport. Committed to `main`.
+
+---
+
 ## 2026-09-12 — Codex: responsive dynamic tray on `fix/responsive-dynamic-tray`
 
 Researched and reproduced the owner-supplied overflow cases before implementation; see `research-2026-09-12-responsive-dynamic-tray.md` and `responsive-layout-audit.md`. Root causes were the three-piece layout budget, visible implicit rows, a global width-oriented preview scale and a non-scrollable touch path. Fragment normalization was already correct and now has explicit coverage; the katana canvas projection was not the collision source.
