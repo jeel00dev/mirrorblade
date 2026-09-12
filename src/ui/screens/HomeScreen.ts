@@ -1,0 +1,42 @@
+import { pieceMarkup } from '../../render/blocks';
+import { button, shardsPill, wordmark } from '../components';
+import { icon, iconButton } from '../Icons';
+import { element, type ScreenContext } from './context';
+
+export function buildHomeScreen(ctx: ScreenContext): HTMLElement {
+  const best = ctx.save.stats.bestScore;
+  const daily = ctx.save.daily;
+  const heroPieces = [
+    pieceMarkup({ cells: [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }], tone: 'cyan' }),
+    pieceMarkup({ cells: [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }], tone: 'cyan' }),
+    pieceMarkup({ cells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], tone: 'amber' }),
+    pieceMarkup({ cells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], tone: 'amber' }),
+  ].join('');
+  return element(`
+    <section aria-label="Home">
+      <div class="home-top">
+        ${wordmark('lg')}
+        <div class="home-meta">${shardsPill(ctx.save.currency)}${iconButton('settings', 'Settings', 'settings')}</div>
+      </div>
+      <div class="home-hero">
+        <div class="hero-stage" id="hero-stage"><span class="hero-mirror" aria-hidden="true"></span><div class="hero-blocks" aria-hidden="true">${heroPieces}</div></div>
+        <div class="home-records">
+          <div class="record"><span>Best score</span><strong>${icon('crest')}<span class="num">${best.toLocaleString()}</span></strong></div>
+          <div class="record record-shards"><span>Mirror Shards</span><strong>${icon('shard')}<span class="num">${ctx.save.currency.toLocaleString()}</span></strong></div>
+        </div>
+      </div>
+      <div class="home-actions">
+        ${ctx.activeRun
+          ? button('Continue run', 'resume', { variant: 'primary', icon: 'play' }) + button('New run', 'quick-play', { variant: 'secondary', icon: 'restart' })
+          : button('Play', 'quick-play', { variant: 'primary', icon: 'play' })}
+        ${button(`Daily Mirror${daily.streak > 0 ? `<small>${daily.streak} day streak</small>` : ''}`, 'daily', { variant: 'secondary', icon: 'daily' })}
+      </div>
+      <nav class="home-nav" aria-label="Menu">
+        <button type="button" class="nav-item" data-action="shop">${icon('shop')}<span>Shop</span></button>
+        <button type="button" class="nav-item" data-action="collection">${icon('collection')}<span>Collection</span></button>
+        <button type="button" class="nav-item" data-action="stats">${icon('stats')}<span>Stats</span></button>
+        <button type="button" class="nav-item" data-action="achievements">${icon('achievements')}<span>Awards</span></button>
+        <button type="button" class="nav-item" data-action="howto">${icon('howto')}<span>Guide</span></button>
+      </nav>
+    </section>`);
+}

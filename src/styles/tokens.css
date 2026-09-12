@@ -1,0 +1,127 @@
+/* OBSIDIAN MIRROR 2.0 — design tokens. Values sampled from docs/reference/original-reference.png. */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-main: #1a1d24;
+  --bg-main-deep: #14171d;
+  --bg-raised: #23272f;
+  --panel-primary: #1f232a;
+  --panel-secondary: #171a20;
+  --panel-border: rgba(255, 255, 255, 0.06);
+  --panel-border-strong: rgba(255, 255, 255, 0.1);
+
+  /* Board */
+  --board-frame: #181b20;
+  --grid-empty: #24282f;
+  --grid-gap: #0f1216;
+  --grid-border: rgba(255, 255, 255, 0.045);
+  --mirror-axis: #353940;
+  --mirror-axis-light: #454a52;
+
+  /* Text */
+  --text-primary: #f0eeea;
+  --text-secondary: #b3b5ba;
+  --text-muted: #80858f;
+  --text-inverse: #15171c;
+
+  /* Blocks (default set; overridden by equipped block set) */
+  --block-cyan: #43c2c7;
+  --block-coral: #ea7d78;
+  --block-amber: #ecb455;
+  --block-violet: #8e60d8;
+
+  /* Semantic */
+  --accent: #ecb455;        /* reward / primary action — the crown gold */
+  --accent-strong: #f5c56c;
+  --accent-ink: #2a1d05;
+  --info: #43c2c7;
+  --danger: #ea7d78;
+  --success: #6fd3a5;
+  --overdrive: #ffb85c;
+  --fracture: #8fb4d4;
+
+  /* Blade metal */
+  --blade-metal-light: #f2f4f2;
+  --blade-metal-mid: #a9b0b4;
+  --blade-metal-dark: #4a5157;
+
+  /* Controls */
+  --control-face: #2c3037;
+  --control-face-hover: #353a42;
+  --control-face-active: #262a30;
+  --control-edge: rgba(255, 255, 255, 0.08);
+  --control-shadow: 0 6px 14px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+
+  /* Spacing scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* Radii */
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 20px;
+  --r-xl: 28px;
+
+  /* Depth (panels) */
+  --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.32);
+  --shadow-2: 0 8px 20px rgba(0, 0, 0, 0.38);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --shadow-4: 0 26px 60px rgba(0, 0, 0, 0.58);
+
+  /* Interactive depth (V3): one family for every control. Rest lifts ~10–25 % more than V2; press contracts. */
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  --inner-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow-rest: 0 2px 0 rgba(0, 0, 0, 0.28), 0 6px 14px rgba(0, 0, 0, 0.36);
+  --shadow-hover: 0 3px 0 rgba(0, 0, 0, 0.3), 0 10px 22px rgba(0, 0, 0, 0.42);
+  --shadow-pressed: 0 0 0 rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.045), 0 3px 0 rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.38);
+  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+
+  /* Motion */
+  --t-fast: 140ms;
+  --t-standard: 220ms;
+  --t-reward: 480ms;
+  --t-major: 800ms;
+  --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Typography */
+  --font: "SF Pro Rounded", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fs-display: clamp(40px, 6vw, 68px);
+  --fs-score: clamp(30px, 4.6vw, 48px);
+  --fs-title: clamp(26px, 3.6vw, 36px);
+  --fs-section: 18px;
+  --fs-button: 16px;
+  --fs-body: 15px;
+  --fs-caption: 13px;
+  --fs-micro: 11px;
+
+  /* Block sizing defaults (gameplay overrides per layout) */
+  --cell: 40px;
+  --tray-cell: 24px;
+
+  /* Safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+body.high-contrast {
+  --grid-empty: #2b3038;
+  --grid-gap: #050608;
+  --grid-border: rgba(255, 255, 255, 0.12);
+  --mirror-axis: #4a505a;
+  --text-secondary: #d2d4d9;
+  --text-muted: #a3a8b1;
+  --panel-border: rgba(255, 255, 255, 0.14);
+  --control-edge: rgba(255, 255, 255, 0.18);
+}

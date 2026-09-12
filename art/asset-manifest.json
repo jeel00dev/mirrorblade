@@ -1,0 +1,182 @@
+{
+  "$schema": "./asset-manifest.schema.json",
+  "generatedBy": "Claude Code, 2026-09-11 (V2) / 2026-09-12 (V3)",
+  "note": "No image-generation tool was available in this environment, so every asset is procedural (SVG / CSS / Three.js / Canvas) and constructed in code. If a studio render is added later, drop the white-background source in art/source-studio/ and the transparent export in public/assets/runtime/, then add an entry here. Nothing in public/assets/runtime is required at runtime today.",
+  "assets": [
+    {
+      "id": "block-material",
+      "source": "procedural",
+      "runtime": "src/styles/blocks.css (.blk)",
+      "purpose": "The resin block face used by the board, tray, drag visual, shop previews and tutorial diagrams",
+      "screens": [
+        "gameplay",
+        "home",
+        "shop",
+        "collection",
+        "howto"
+      ],
+      "construction": "Layered CSS: restrained face gradient (+14 % white top → −4 % black bottom), four-sided bevel from inset shadows (top+left lit 42 % white with a 1 px 65 % catch-light, right 26 % black, bottom 22 % black), bottom lip (14 % + 34 % underline), contact shadow, 24 %-height gloss (::before), faint resin glow (::after). Colour from --tone; radius 0.17 cell, bevel 5.5 % cell (min 1.5 px), lip 7.5 % cell.",
+      "dimensions": "cell-relative",
+      "format": "css"
+    },
+    {
+      "id": "board-frame",
+      "source": "procedural",
+      "runtime": "src/styles/board.css (.board, .board-grid, .cell)",
+      "purpose": "Smoked ceramic frame, near-black grooves, recessed tile faces, glass mirror column with a slow travelling reflection",
+      "screens": [
+        "gameplay",
+        "shop",
+        "collection",
+        "howto"
+      ],
+      "construction": "Frame #181b20 with inset highlight and outer shadow; grid background #0f1216; each cell ::before is a #24282f face with top highlight and bottom shade; axis cells use #353940 plus a gradient sheen animated 9s.",
+      "dimensions": "cell-relative",
+      "format": "css"
+    },
+    {
+      "id": "katana",
+      "source": "procedural",
+      "runtime": "src/render/KatanaModel.ts + src/render/BladeScene.ts",
+      "purpose": "The signature katana: gameplay blade dock, Home hero, Shop blade preview",
+      "screens": [
+        "gameplay",
+        "home",
+        "shop",
+        "collection"
+      ],
+      "construction": "Procedural per docs/katana-research.md: 72-ring shinogi-zukuri blade (8 verts/ring: edge, wavy hamon boundary, shinogi, mune) with sori 0.085 and a chū-kissaki tip, vertex-colour hamon; habaki box, two seppa, extruded rounded-square tsuba with blade slot, fuchi/kashira elliptical caps, elliptical tsuka with a generated 128×512 ito-wrap texture, cyan menuki, edge hairline for flashes. MeshPhysicalMaterial steel metalness 1 / roughness 0.2 / clearcoat 0.4 under a PMREM RoomEnvironment. Poses: upright / dock (diagonal sway) / showcase.",
+      "dimensions": "≈ 5.3 × 0.4 × 0.4 scene units; ≈ 1,600 triangles; one 128×512 canvas texture",
+      "format": "three.js"
+    },
+    {
+      "id": "blade-shadow",
+      "source": "procedural",
+      "runtime": "src/render/BladeScene.ts (softShadowTexture)",
+      "purpose": "Soft contact shadow under the hero / preview blade",
+      "screens": [
+        "home",
+        "shop"
+      ],
+      "construction": "128×64 canvas radial gradient, squashed to an ellipse, used as a transparent plane texture",
+      "dimensions": "128×64",
+      "format": "canvas texture"
+    },
+    {
+      "id": "icon-family",
+      "source": "procedural",
+      "runtime": "src/ui/Icons.ts",
+      "purpose": "Every UI glyph: home, play, pause, restart, settings, shop, collection, stats, achievements, daily, back, close, confirm, info, sound, music, haptics, graphics, motion, contrast, shard (currency), blade, rotate, lock, owned, equipped, howto, share, mirror, energy, overdrive, fracture, clutch, chain, crest, trail, effect, board, blocks, time",
+      "screens": [
+        "all"
+      ],
+      "construction": "24×24 SVG, 1.75px round-capped strokes, 18–20px optical silhouette. Only the crest, shard, play and equipped star are solid fills.",
+      "dimensions": "24×24",
+      "format": "inline svg"
+    },
+    {
+      "id": "crest-emblem",
+      "source": "procedural",
+      "runtime": "src/ui/Icons.ts (crest)",
+      "purpose": "Score emblem in the HUD, Home records, results and Perfection medallion",
+      "screens": [
+        "gameplay",
+        "home",
+        "gameover",
+        "achievements",
+        "stats"
+      ],
+      "construction": "Original three-point crest with a base bar; gold #ecb455 with a soft drop shadow. Drawn as its own silhouette rather than copied from the reference crown.",
+      "dimensions": "24×24",
+      "format": "inline svg"
+    },
+    {
+      "id": "fracture-edges",
+      "source": "procedural",
+      "runtime": "src/core/Game.ts (fractureEdges) + src/styles/states.css",
+      "purpose": "Corner crack marks that appear during Fracture and shatter outward on a timeout",
+      "screens": [
+        "gameplay"
+      ],
+      "construction": "One SVG crack path mirrored into four corners, 22vmin each, cold blue during Fracture, coral in the final seconds",
+      "dimensions": "100×100 viewBox",
+      "format": "inline svg"
+    },
+    {
+      "id": "clear-effects",
+      "source": "procedural",
+      "runtime": "src/render/EffectsLayer.ts",
+      "purpose": "Line-clear sweeps, particles, rings, placement wake and cut sparks",
+      "screens": [
+        "gameplay",
+        "shop"
+      ],
+      "construction": "Pooled Canvas 2D particles (square / dot / shard) with gravity and spin, gradient sweeps per cleared line, expanding rings for ripple / strong clears. Style and colours come from the equipped clear effect and trail.",
+      "dimensions": "board-relative",
+      "format": "canvas 2d"
+    },
+    {
+      "id": "accessible-block-symbols",
+      "source": "procedural",
+      "runtime": "src/styles/blocks.css (data URIs)",
+      "purpose": "Embossed circle / triangle / square / diamond on each tone in colour-accessible mode",
+      "screens": [
+        "gameplay",
+        "home",
+        "shop"
+      ],
+      "construction": "Four 24×24 stroke-only SVG data URIs at 45% black, 46% of the block size",
+      "dimensions": "24×24",
+      "format": "svg data uri"
+    },
+    {
+      "id": "audio-set",
+      "source": "procedural",
+      "runtime": "src/audio/AudioManager.ts",
+      "purpose": "All sound effects and the base / chain / overdrive / fracture music layers",
+      "screens": [
+        "all"
+      ],
+      "construction": "Web Audio oscillators with exponential envelopes; three sound themes alter pitch, decay and waveforms",
+      "dimensions": "n/a",
+      "format": "web audio"
+    },
+    {
+      "id": "ambience",
+      "source": "procedural",
+      "runtime": "src/render/Ambience.ts",
+      "purpose": "Distant drifting piece silhouettes, motes, rare katana pass behind every screen",
+      "screens": [
+        "all"
+      ],
+      "construction": "Canvas 2D at ~30 fps: rounded-rect piece silhouettes from the piece library at 4–9 % alpha on three parallax depths, 10–22 motes, a gradient line that sweeps through one piece every 15–35 s and splits it into two drifting halves. Pointer parallax on desktop only; static under reduced motion; off at Low quality.",
+      "dimensions": "viewport",
+      "format": "canvas 2d"
+    },
+    {
+      "id": "katana-thumbnail",
+      "source": "procedural",
+      "runtime": "src/ui/screens/ShopScreen.ts (katanaSilhouette)",
+      "purpose": "Shop and Collection item cards for blade skins",
+      "screens": [
+        "shop",
+        "collection"
+      ],
+      "construction": "64×64 inline SVG silhouette (blade, habaki, tsuba, wrapped tsuka with diamond strokes, menuki, kashira) filled from the skin colours",
+      "dimensions": "64×64",
+      "format": "inline svg"
+    },
+    {
+      "id": "combo-typography",
+      "source": "procedural",
+      "runtime": "src/ui/Callouts.ts + src/styles/components.css",
+      "purpose": "DOUBLE / TRIPLE / MAX / PERFECT / CLUTCH / CONTRACT / PRECISION / MIRROR LEVEL words",
+      "screens": [
+        "gameplay"
+      ],
+      "construction": "Text with background-clip metal gradients per tier, per-letter compress/expand, one-pass sheen, axis-outward clip-path reveal, scaleY(−1) masked reflection",
+      "dimensions": "26–70 px",
+      "format": "css"
+    }
+  ]
+}
