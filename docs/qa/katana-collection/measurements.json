@@ -1,0 +1,390 @@
+{
+  "measurements": [
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        1366,
+        768
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        1366,
+        768
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        1366,
+        768
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        1366,
+        768
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        1366,
+        768
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        1280,
+        720
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        1280,
+        720
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        1280,
+        720
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        1280,
+        720
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        1280,
+        720
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        390,
+        844
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        390,
+        844
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        390,
+        844
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        390,
+        844
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        390,
+        844
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        430,
+        932
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        430,
+        932
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        430,
+        932
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        430,
+        932
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        430,
+        932
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        844,
+        390
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        844,
+        390
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        844,
+        390
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        844,
+        390
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        844,
+        390
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "surgical-chrome",
+      "viewport": [
+        768,
+        1024
+      ],
+      "triangles": 10612,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "black-titanium",
+      "viewport": [
+        768,
+        1024
+      ],
+      "triangles": 11508,
+      "calls": 8,
+      "textures": 5,
+      "geometries": 12
+    },
+    {
+      "id": "frost-blade",
+      "viewport": [
+        768,
+        1024
+      ],
+      "triangles": 12180,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "prism-edge",
+      "viewport": [
+        768,
+        1024
+      ],
+      "triangles": 12176,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    },
+    {
+      "id": "golden-edge",
+      "viewport": [
+        768,
+        1024
+      ],
+      "triangles": 14740,
+      "calls": 9,
+      "textures": 5,
+      "geometries": 13
+    }
+  ],
+  "errors": []
+}

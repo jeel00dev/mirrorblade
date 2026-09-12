@@ -1,6 +1,6 @@
 # Third-party assets
 
-None. Every visual and audio asset in MIRRORBLADE is generated in code (see `art/asset-manifest.json`).
+None. Every visual and audio asset in MIRRORBLADE is generated in code (see `art/asset-manifest.json`). The 2026-09-12 five-katana collection adds original geometry, seeded steel/silk/underlay textures, vector thumbnails and procedural signature effects. Museum objects were researched for anatomy and ornament vocabulary; their images were not imported. Sources and limitations are recorded in `research-2026-09-12-katana-collection.md`.
 
 | Asset | Source | License | Attribution |
 | --- | --- | --- | --- |

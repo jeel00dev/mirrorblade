@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { applyKatanaSkin, buildKatana, createKatanaMaterials, type KatanaMaterials, type KatanaSkin } from './KatanaModel';
+import { buildKatana, createKatanaMaterials, disposeKatana, type KatanaMaterials, type KatanaSkin } from './KatanaModel';
+import { KATANA_DESIGNS } from '../config/katanas';
+import { sampleKatanaMotion } from './KatanaMotion';
+import { KatanaFlourish } from './KatanaFlourish';
 
 export type BladeSkin = KatanaSkin;
 
@@ -23,12 +26,18 @@ export interface BladeState {
  */
 export class BladeScene {
   public readonly canvas: HTMLCanvasElement;
-  public readonly triangles: number;
+  public triangles: number;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
   private readonly group = new THREE.Group();
-  private readonly materials: KatanaMaterials;
+  private materials: KatanaMaterials;
+  private model: THREE.Group;
+  private design = KATANA_DESIGNS[0]!;
+  private readonly flourish = new KatanaFlourish();
+  private showcaseTime = 0;
+  private showcasePaused = false;
+  private detailView = false;
   private readonly floorShadow: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   private container: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -67,14 +76,16 @@ export class BladeScene {
 
     this.materials = createKatanaMaterials();
     const built = buildKatana(this.materials);
+    this.model = built.group;
     this.triangles = built.triangles;
-    this.group.add(built.group);
+    this.group.add(built.group, this.flourish.group);
+    this.canvas.dataset.bladeId = this.design.id;
 
-    const key = new THREE.DirectionalLight(0xffffff, 1.5);
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(-3, 5, 6);
-    const fill = new THREE.DirectionalLight(0xcfe3ef, 0.45);
+    const fill = new THREE.DirectionalLight(0xcfe3ef, 0.8);
     fill.position.set(4, -2, 3);
-    this.scene.add(key, fill, new THREE.AmbientLight(0xffffff, 0.22));
+    this.scene.add(key, fill, new THREE.AmbientLight(0xffffff, 0.4));
 
     this.floorShadow = new THREE.Mesh(
       new THREE.PlaneGeometry(2.6, 1.1),
@@ -99,6 +110,11 @@ export class BladeScene {
     this.hero = Boolean(options.hero);
     this.pose = options.pose ?? (this.hero ? 'upright' : 'dock');
     this.group.rotation.order = this.pose === 'slash' ? 'ZYX' : 'XYZ';
+    this.detailView = false;
+    this.showcaseTime = 0;
+    if (this.pose === 'slash') this.applySlashRotation();
+    else this.group.rotation.set(0.10, 0.32, this.tiltFor());
+    this.canvas.dataset.bladeView = 'full';
     container.append(this.canvas);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -141,7 +157,46 @@ export class BladeScene {
   }
 
   public setSkin(skin: BladeSkin): void {
-    applyKatanaSkin(this.materials, skin);
+    const design = skin.katana ?? KATANA_DESIGNS[0]!;
+    if (this.design.id === design.id) return;
+    this.group.remove(this.model);
+    disposeKatana(this.model, this.materials);
+    this.design = design;
+    this.materials = createKatanaMaterials(design);
+    const built = buildKatana(this.materials, design);
+    this.model = built.group;
+    this.triangles = built.triangles;
+    this.group.add(this.model);
+    this.showcaseTime = 0;
+    this.canvas.dataset.bladeId = design.id;
+    this.canvas.dataset.bladeTier = String(design.tier);
+  }
+
+  public replayShowcase(): void {
+    this.showcaseTime = 0;
+    this.showcasePaused = false;
+  }
+
+  public toggleShowcase(): boolean {
+    this.showcasePaused = !this.showcasePaused;
+    return this.showcasePaused;
+  }
+
+  public isShowcasePaused(): boolean { return this.showcasePaused; }
+
+  public diagnostics(): Record<string, unknown> {
+    return { id: this.design.id, triangles: this.triangles, calls: this.renderer.info.render.calls,
+      geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures,
+      phase: this.canvas.dataset.motionPhase, time: this.showcaseTime,
+      rotation: [this.group.rotation.x, this.group.rotation.y, this.group.rotation.z],
+      position: this.group.position.toArray(), effectsVisible: this.flourish.group.visible };
+  }
+
+  public toggleDetail(): boolean {
+    this.detailView = !this.detailView;
+    this.canvas.dataset.bladeView = this.detailView ? 'detail' : 'full';
+    this.resize();
+    return this.detailView;
   }
 
   public setState(next: Partial<BladeState>): void {
@@ -205,13 +260,12 @@ export class BladeScene {
 
   public dispose(): void {
     this.unmount();
-    this.scene.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        object.geometry.dispose();
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.forEach((material) => material.dispose());
-      }
-    });
+    disposeKatana(this.model, this.materials);
+    this.flourish.dispose();
+    this.floorShadow.geometry.dispose();
+    this.floorShadow.material.map?.dispose();
+    this.floorShadow.material.dispose();
+    this.scene.environment?.dispose();
     this.renderer.dispose();
   }
 
@@ -227,29 +281,36 @@ export class BladeScene {
     this.camera.aspect = this.width / this.height;
     // Fit the tilted 5.3-unit sword: its bounding box depends on the pose tilt.
     const tilt = this.tiltFor();
-    const half = 2.8;
-    const fill = this.pose === 'showcase' ? 0.78 : this.pose === 'slash' ? 0.94 : this.hero ? 0.92 : 0.9;
+    const half = this.detailView ? 0.96 : 2.8;
+    const fill = this.pose === 'showcase' ? 0.9 : this.pose === 'slash' ? 0.94 : this.hero ? 0.92 : 0.9;
     const extentY = (Math.abs(Math.cos(tilt)) * half + 0.12) / fill;
     const extentX = (Math.abs(Math.sin(tilt)) * half + 0.2) / fill;
     const fovHalf = THREE.MathUtils.degToRad(this.camera.fov / 2);
     const byHeight = extentY / Math.tan(fovHalf);
     const byWidth = (extentX / this.camera.aspect) / Math.tan(fovHalf);
-    this.camera.position.z = Math.max(byHeight, byWidth);
+    const focus = this.detailView ? new THREE.Vector3(0, -1.85, 0).applyEuler(new THREE.Euler(0.10, 0.32, tilt)) : new THREE.Vector3(0, -0.05, 0);
+    this.camera.position.set(focus.x, focus.y + 0.2, Math.max(byHeight, byWidth));
+    this.camera.lookAt(focus);
     this.camera.updateProjectionMatrix();
   }
 
   private tiltFor(): number {
-    return this.pose === 'upright' ? 0 : this.pose === 'showcase' ? -0.95 : this.pose === 'slash' ? this.slashTilt : -0.55;
+    return this.pose === 'upright' ? -0.12 : this.pose === 'showcase' ? -1.08 : this.pose === 'slash' ? this.slashTilt : -0.55;
   }
 
   private animate(): void {
     if (!this.running) return;
     const delta = Math.min(0.05, this.clock.getDelta());
+    if (document.hidden || !this.container?.isConnected) {
+      this.frame = requestAnimationFrame(this.animate);
+      return;
+    }
     const time = this.clock.elapsedTime;
     if (this.pose === 'slash') {
       // Held still by the cinematic: no sway, no spin, the edge lit as hard as the caller asks.
       this.applySlashRotation();
       this.group.position.y = 0;
+      this.flourish.group.visible = false;
       this.materials.steel.roughness = 0.16;
       this.materials.steel.envMapIntensity = 1.6 + this.edgeGlow * 1.4;
       this.materials.edge.opacity = this.edgeGlow;
@@ -257,35 +318,44 @@ export class BladeScene {
       this.frame = requestAnimationFrame(this.animate);
       return;
     }
+    if (this.hero && !this.reducedMotion && !this.showcasePaused) this.showcaseTime += delta;
+    const motion = sampleKatanaMotion(this.design, this.showcaseTime, this.reducedMotion || this.showcasePaused || this.detailView);
+    this.canvas.dataset.motionPhase = this.hero ? motion.phase : 'gameplay';
     const burstSpeed = this.burst > 0 ? 8.5 * this.burst : 0;
     if (this.burst > 0) this.burst = Math.max(0, this.burst - delta * 1.5);
     const jitter = this.state.fracture ? Math.sin(time * 9) * 0.3 : 0;
     const target = this.reducedMotion ? 0 : this.targetSpeed + burstSpeed + jitter;
     this.speed += (target - this.speed) * Math.min(1, delta * 5);
     this.spin += this.speed * delta;
-    // Hero: full slow rotation. Dock / showcase: a limited yaw sway so the blade face never vanishes into a line,
-    // except while a burst (forge, hover) spins it fully.
-    const sway = this.pose === 'upright' ? this.spin : 0.55 + Math.sin(this.spin * 0.9) * 0.6;
+    // Gameplay keeps its state-driven sway; Home and Shop use the flourish / hold cycle.
+    const sway = 0.55 + Math.sin(this.spin * 0.9) * 0.6;
     const fullSpin = this.burst > 0.3 || this.state.hover;
-    this.group.rotation.y = this.reducedMotion ? 0.55 : fullSpin || this.pose === 'upright' ? this.spin : sway;
-    this.group.rotation.x = this.reducedMotion ? 0.06 : 0.06 + Math.sin(time * 0.7) * 0.03;
+    this.group.rotation.y = this.hero ? motion.yaw : this.reducedMotion ? 0.32 : fullSpin ? this.spin : sway;
+    this.group.rotation.x = this.hero || this.reducedMotion ? 0.10 : 0.10 + Math.sin(time * 0.7) * 0.03;
     const tilt = this.tiltFor();
     // Slash: a single swing of the whole sword on the cut.
-    if (this.slashT >= 0) {
+    if (this.hero) this.group.rotation.z = tilt + motion.tilt;
+    else if (this.slashT >= 0) {
       this.slashT += delta / 0.2;
       const s = Math.min(1, this.slashT);
       this.group.rotation.z = tilt + (s < 0.4 ? -0.5 * (s / 0.4) : -0.5 + 0.85 * ((s - 0.4) / 0.6));
       if (this.slashT >= 1) { this.slashT = -1; this.group.rotation.z = tilt; }
     } else this.group.rotation.z += (tilt - this.group.rotation.z) * Math.min(1, delta * 6);
-    this.group.position.y = this.hero && !this.reducedMotion ? Math.sin(time * 1.1) * 0.06 : 0;
+    this.group.position.y = this.hero ? motion.lift : 0;
+    this.flourish.update(this.design, motion, this.hero && !this.detailView);
 
-    const dull = this.state.charges <= 0;
+    const dull = !this.hero && this.state.charges <= 0;
     const full = this.state.energy >= 0.999;
-    const sweep = full && !this.reducedMotion ? Math.max(0, Math.sin(time * 3.9)) * 0.55 : 0;
+    const sweep = !this.hero && full && !this.reducedMotion ? Math.max(0, Math.sin(time * 3.9)) * 0.55 : 0;
     this.materials.steel.roughness = dull ? 0.55 : 0.2 - this.state.energy * 0.05;
     this.materials.steel.envMapIntensity = dull ? 0.45 : 1.3 + this.state.energy * 0.35 + (this.state.hover ? 0.35 : 0) + this.burst * 1.3 + sweep + (this.state.overdrive ? 0.25 : 0);
     this.materials.edge.opacity = dull ? 0 : Math.min(1, this.burst * 0.9 + sweep * 0.6 + (this.state.hover ? 0.25 : 0));
-    this.floorShadow.material.opacity = 0.42 + Math.abs(Math.sin(this.spin)) * 0.16;
+    if (this.hero) {
+      this.materials.steel.roughness = 0.25;
+      this.materials.steel.envMapIntensity = 1.4 + motion.strength * 0.25;
+      this.materials.edge.opacity = this.design.tier > 2 ? motion.strength * 0.28 : 0;
+    }
+    this.floorShadow.material.opacity = 0.48;
     this.renderer.render(this.scene, this.camera);
     this.frame = requestAnimationFrame(this.animate);
   }

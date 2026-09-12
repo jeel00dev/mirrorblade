@@ -240,6 +240,7 @@ export class Game {
       bladesEarned: this.rack.bladesEarned,
       difficulty: this.director.state(),
       bladeTriangles: this.blade.triangles,
+      bladePresentation: this.blade.diagnostics(),
       contract: this.contracts.current(),
       precision: this.precision.current(),
       chain: this.combo.current(),
@@ -1123,9 +1124,10 @@ export class Game {
     const element = this.screens.show('home', () => buildHomeScreen(this.context()), { direction, focus: '[data-action="quick-play"], [data-action="resume"]' });
     const stage = element.querySelector<HTMLElement>('#hero-stage');
     if (stage) {
-      this.blade.setSkin({ colors: this.inventory.equipped('blades').colors });
+      this.blade.setSkin(this.inventory.equipped('blades'));
       this.blade.setState({ charges: 3, hover: false, energy: 0.35, overdrive: false, fracture: false });
       this.blade.mount(stage, { hero: true });
+      this.syncBladeControls();
     }
   }
 
@@ -1138,13 +1140,27 @@ export class Game {
     const card = element?.querySelector<HTMLElement>('[data-preview-id]');
     const item = card ? cosmeticById(card.dataset.previewId ?? '') : undefined;
     if (element && item) this.preview = mountCatalogPreview(element, item, this.blade, this.blockColors());
+    this.syncBladeControls();
     this.shopState.revealing = null;
   }
 
   private disposePreview(): void {
     this.preview?.dispose();
     this.preview = null;
-    this.blade.setSkin({ colors: this.inventory.equipped('blades').colors });
+    this.blade.setSkin(this.inventory.equipped('blades'));
+  }
+
+  private syncBladeControls(): void {
+    const reduced = this.save.settings.reducedMotion;
+    const paused = this.blade.isShowcasePaused();
+    this.screens.activeElement()?.querySelectorAll<HTMLButtonElement>('[data-action="blade-motion"]').forEach((control) => {
+      control.disabled = reduced;
+      control.setAttribute('aria-pressed', String(paused || reduced));
+      control.setAttribute('aria-label', reduced ? 'Blade animation disabled by reduced motion' : paused ? 'Resume blade animation' : 'Pause blade animation');
+      control.innerHTML = icon(paused || reduced ? 'play' : 'pause') + (control.classList.contains('hero-motion') ? '' : `<span>${reduced ? 'Still' : paused ? 'Resume' : 'Pause'}</span>`);
+    });
+    const replay = this.screens.activeElement()?.querySelector<HTMLButtonElement>('[data-action="blade-replay"]');
+    if (replay) replay.disabled = reduced;
   }
 
   private handleAction(action: string, value?: string): void {
@@ -1226,6 +1242,17 @@ export class Game {
         this.screens.activeElement()?.querySelector<HTMLElement>('.screen-body')?.scrollTo({ top: 0, behavior: this.save.settings.reducedMotion ? 'auto' : 'smooth' });
         break;
       case 'purchase': if (value) this.purchase(value); break;
+      case 'blade-replay': this.blade.replayShowcase(); this.syncBladeControls(); break;
+      case 'blade-motion': this.blade.toggleShowcase(); this.syncBladeControls(); break;
+      case 'blade-detail': {
+        const detail = this.blade.toggleDetail();
+        const control = this.screens.activeElement()?.querySelector<HTMLButtonElement>('[data-action="blade-detail"]');
+        if (control) {
+          control.setAttribute('aria-pressed', String(detail));
+          control.innerHTML = icon('blade') + `<span>${detail ? 'Full katana' : 'Inspect fittings'}</span>`;
+        }
+        break;
+      }
       case 'equip':
         if (value && this.inventory.equip(value)) {
           this.applyCosmetics();
@@ -1350,7 +1377,7 @@ export class Game {
     style.setProperty('--grid-gap', gap ?? '#0f1216');
     style.setProperty('--mirror-axis', axis ?? '#353940');
     const blade = this.inventory.equipped('blades');
-    this.blade.setSkin({ colors: blade.colors });
+    this.blade.setSkin(blade);
     const effect = this.inventory.equipped('effects');
     const trail = this.inventory.equipped('trails');
     this.view.effects.configure({ effect: effect.effect, effectColors: effect.colors, trail: trail.trail, trailColors: trail.colors });

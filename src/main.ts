@@ -7,6 +7,7 @@ import './styles/gameplay.css';
 import './styles/screens.css';
 import './styles/states.css';
 import './styles/cinematic.css';
+import './styles/katanas.css';
 import { Game } from './core/Game';
 import { CrazyGamesAdapter } from './platform/CrazyGamesAdapter';
 import { localStorageBackend, StorageAdapter } from './platform/StorageAdapter';

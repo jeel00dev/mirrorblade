@@ -1,3 +1,5 @@
+import { KATANA_DESIGNS, type KatanaDesign } from './katanas';
+
 export type CosmeticCategory = 'blocks' | 'boards' | 'blades' | 'trails' | 'effects' | 'sounds';
 export type CosmeticStyle = 'essential' | 'refined' | 'signature';
 export type EffectStyle = 'shatter' | 'sweep' | 'dissolve' | 'dust' | 'ripple';
@@ -22,6 +24,7 @@ export interface CosmeticDefinition {
   effect?: EffectStyle;
   trail?: TrailStyle;
   sound?: SoundTheme;
+  katana?: KatanaDesign;
 }
 
 export const COSMETICS: readonly CosmeticDefinition[] = [
@@ -40,12 +43,12 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
   { id: 'ember-ceramic', category: 'boards', name: 'Ember Ceramic', cost: 260, style: 'signature', description: 'Smoked ceramic with a quiet warm edge.', colors: ['#1f1719', '#2e2226', '#130d0f', '#4d3a3c'] },
   { id: 'deep-space', category: 'boards', name: 'Deep Space', cost: 300, style: 'signature', description: 'Black-violet space glass with distant light.', colors: ['#16141f', '#221e30', '#0d0b13', '#3e3760'] },
 
-  // Blades
-  { id: 'surgical-chrome', category: 'blades', name: 'Surgical Chrome', cost: 0, style: 'essential', description: 'Polished steel, dark iron fittings, charcoal wrap. The signature katana.', colors: ['#e6eaeb', '#2b2f36', '#1e2024', '#43c2c7'] },
-  { id: 'black-titanium', category: 'blades', name: 'Black Titanium', cost: 170, style: 'refined', description: 'Dark aerospace steel with black fittings and a pale edge light.', colors: ['#8d949b', '#15181c', '#101215', '#d9e0e4'] },
-  { id: 'frost-blade', category: 'blades', name: 'Frost Blade', cost: 220, style: 'refined', description: 'Pale ice steel, slate fittings, a cold inner light.', colors: ['#eafbff', '#3f6d80', '#17242b', '#9dd3e6'] },
-  { id: 'prism-edge', category: 'blades', name: 'Prism Edge', cost: 260, style: 'signature', description: 'Lilac steel with indigo fittings and a spectral menuki.', colors: ['#e9e4ff', '#3b2f7a', '#1b1633', '#7ef3e4'] },
-  { id: 'golden-edge', category: 'blades', name: 'Golden Edge', cost: 360, style: 'signature', description: 'Pale gold steel, bronze fittings, an amber menuki.', colors: ['#f2e2b0', '#6e4f1a', '#2a2010', '#ffd166'] },
+  // Saved IDs and prices survive the five-design collection upgrade.
+  ...KATANA_DESIGNS.map((katana): CosmeticDefinition => ({
+    id: katana.id, category: 'blades', name: katana.name, cost: katana.cost,
+    style: katana.tier === 1 ? 'essential' : katana.tier < 4 ? 'refined' : 'signature',
+    description: katana.description, colors: katana.colors, katana,
+  })),
 
   // Clear effects
   { id: 'glass-shatter', category: 'effects', name: 'Glass Shatter', cost: 0, style: 'essential', description: 'Clean crystalline fracture.', colors: ['#dffaff', '#ffffff'], effect: 'shatter' },

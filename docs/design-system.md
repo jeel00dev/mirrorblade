@@ -69,6 +69,14 @@ The system above was written before implementation. This is what shipped, so bot
 
 **State transformations** (`states.css`): Overdrive — warm background wash, orbiting conic rim (`@property --rim-angle`), breathing axis, 6 % brighter blocks, score breathe, `2×` chip with drain bar; final 3 s doubles the rim speed. Fracture — cool wash, corner crack marks (0.45 → 0.9 opacity), board pressure pulse, cell dimming pulse, countdown chip, urgent tray; final 3 s turns the rim and cracks coral. Reduced motion replaces every animation with a static 2 px rim ring and keeps chips, text and meters.
 
+## Katana collection (Codex, 2026-09-12)
+
+The collection supersedes the earlier single-geometry katana description below. Five Japanese katana designs preserve OBSIDIAN MIRROR's surfaces, type, controls and depth tokens. Shoshin → Kage → Shiosai → Raimei → Akatsuki progress through steel, silver, cyan, violet/gold and warm gold/ivory. Saved IDs and prices remain compatible. See `research-2026-09-12-katana-collection.md` for sources and the design specification.
+
+All screens mount the same live model. Shop adds ordered 01–05 cards, a fittings close-up, original matching SVG thumbnails, a named replay action and pause/resume. The Home caption identifies equipped name and tier. Unaffordable blade artwork remains fully lit; the price and lock carry availability.
+
+Home/catalog motion is a 2.2–3.4 s signature sequence followed by 3–3.3 s completely still. The five signatures are a steel glint, crescent, tide ribbons, storm branches and sun halo. Gameplay retains its state-driven dock response. Pause and reduced motion suppress decorative movement and effects. Original generated steel, silk and samé textures, sculpted guards and conforming grip ribbons supply detail without external assets. Model budget: fewer than 15k triangles and eight material batches; actual counts are in `qa/katana-collection/measurements.json`.
+
 ## V3 additions (Claude, 2026-09-12)
 
 - **Depth tokens** (`tokens.css`): `--shadow-rest` (2 px hard + 14 px soft), `--shadow-hover` (3 px + 22 px), `--shadow-pressed` (0 + 6 px), `--inner-highlight`, `--inner-edge`, `--panel-shadow`, `--shadow-inset`. Rest lifts ~10–25 % more than V2; hover +2 px; press moves the surface 1 px down and contracts the shadow; release springs back in 140 ms. Applied to every interactive surface; nav items keep the reference's flat rest look with only a faint lift.
